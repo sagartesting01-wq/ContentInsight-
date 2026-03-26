@@ -1,0 +1,1231 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Content Score Validator v2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600;700&display=swap');
+:root{
+  --bg:#08090d;--s1:#0f1117;--s2:#151820;--s3:#1c2030;
+  --b1:#222638;--b2:#2d3350;
+  --cyan:#00d4ff;--violet:#8b5cf6;--green:#22d3a4;--red:#f43f5e;--amber:#f59e0b;--blue:#3b82f6;
+  --text:#dde3f0;--muted:#5c6480;--dim:#3a4060;
+  --mono:'IBM Plex Mono',monospace;--sans:'DM Sans',sans-serif;
+  --r:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;padding:28px 20px 60px;}
+
+/* ── HEADER ── */
+.hdr{display:flex;align-items:center;gap:14px;margin-bottom:32px;}
+.hdr-icon{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--cyan),var(--violet));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.hdr h1{font-size:20px;font-weight:700;letter-spacing:-.3px;}
+.hdr p{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px;}
+.db-pill{display:inline-flex;align-items:center;gap:5px;background:var(--s2);border:1px solid var(--b1);border-radius:20px;padding:3px 10px;font-family:var(--mono);font-size:10px;color:var(--green);margin-top:4px;}
+.db-pill::before{content:'●';font-size:7px;}
+
+/* ── CARDS ── */
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:20px;margin-bottom:16px;}
+.card-title{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.card-title span{display:inline-block;width:18px;height:18px;background:var(--s3);border-radius:4px;text-align:center;line-height:18px;font-size:11px;color:var(--cyan);}
+
+/* ── STEP 1: PASTE ── */
+.paste-area{width:100%;min-height:100px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:12px;padding:12px;outline:none;resize:vertical;transition:border-color .2s;}
+.paste-area:focus{border-color:var(--cyan);}
+.paste-area::placeholder{color:var(--muted);}
+.parse-hint{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px;}
+
+/* ── COLUMN PICKERS (compact) ── */
+.col-pick-bar{margin-bottom:14px;}
+.col-pick-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:10px;}
+.col-pick-lbl{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--muted);min-width:120px;}
+.opt-scores-details{background:var(--s2);border:1px solid var(--b1);border-radius:8px;padding:8px 12px;margin-top:8px;}
+.opt-scores-details summary{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--cyan);cursor:pointer;list-style:none;}
+.opt-scores-details summary::-webkit-details-marker{display:none;}
+.opt-scores-details .help-mini{font-size:10px;color:var(--dim);margin:8px 0;}
+.map-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.map-row{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--b1);border-radius:6px;padding:8px 10px;}
+.map-label{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--cyan);width:120px;flex-shrink:0;}
+.map-select{flex:1;background:var(--s3);border:1px solid var(--b2);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:11px;padding:5px 8px;outline:none;cursor:pointer;}
+.map-select:focus{border-color:var(--cyan);}
+.map-badge{font-family:var(--mono);font-size:9px;color:var(--muted);white-space:nowrap;}
+
+/* ── PREVIEW TABLE ── */
+.preview-wrap{overflow-x:auto;margin-top:4px;}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;}
+th{background:var(--s3);color:var(--muted);font-size:9px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;padding:7px 10px;text-align:left;border-bottom:1px solid var(--b1);}
+td{padding:7px 10px;border-bottom:1px solid var(--b1);color:var(--text);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--s2);}
+
+/* ── BUTTONS ── */
+.btn-parse{background:var(--s2);border:1px solid var(--b2);border-radius:var(--r);color:var(--cyan);font-family:var(--mono);font-size:11px;font-weight:600;padding:9px 18px;cursor:pointer;transition:all .15s;margin-top:10px;}
+.btn-parse:hover{background:var(--s3);border-color:var(--cyan);}
+.btn-validate{width:100%;background:linear-gradient(135deg,var(--cyan),#0080aa);border:none;border-radius:var(--r);color:#000;font-family:var(--sans);font-size:13px;font-weight:700;padding:13px;cursor:pointer;transition:all .15s;margin-top:4px;}
+.btn-validate:hover{opacity:.9;transform:translateY(-1px);}
+.btn-validate:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
+/* ── RESULTS ── */
+#results{margin-top:24px;}
+.r-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.r-title{font-size:17px;font-weight:700;}
+.r-meta{font-family:var(--mono);font-size:11px;color:var(--muted);}
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px;}
+.s-stat{background:var(--s1);border:1px solid var(--b1);border-radius:10px;padding:12px 14px;}
+.s-val{font-family:var(--mono);font-size:24px;font-weight:700;line-height:1;margin-bottom:3px;}
+.s-lbl{font-size:11px;color:var(--muted);font-family:var(--mono);}
+
+/* ── RESULT CARD ── */
+.rc{background:var(--s1);border:1px solid var(--b1);border-radius:10px;margin-bottom:10px;overflow:hidden;}
+.rc-hdr{display:grid;grid-template-columns:8px 1fr auto auto;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--b1);}
+.rc-dot{width:8px;height:8px;border-radius:50%;}
+.rc-name{font-family:var(--mono);font-size:12px;font-weight:600;}
+.rc-meta{font-size:10px;color:var(--muted);margin-top:2px;font-family:var(--mono);}
+.mid-tag{font-family:var(--mono);font-size:10px;background:var(--s2);border:1px solid var(--b1);border-radius:4px;padding:2px 8px;color:var(--muted);}
+.mid-tag.warn{border-color:#3a2200;color:var(--amber);background:#1a1000;}
+.verdict{font-family:var(--mono);font-size:10px;font-weight:600;padding:3px 9px;border-radius:4px;}
+.rc-body{padding:14px 16px;}
+
+/* ── SCORE BLOCKS ── */
+.score-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}
+.sb{background:var(--s2);border:1px solid var(--b1);border-radius:7px;padding:11px;}
+.sb-lbl{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;}
+.sb-vals{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.sv-agent{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--amber);}
+.sv-arrow{color:var(--dim);font-size:10px;}
+.sv-db{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--green);}
+.sv-diff{font-family:var(--mono);font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;}
+.diff-ok{background:#001a0d;color:var(--green);}
+.diff-warn{background:#1a0e00;color:var(--amber);}
+.diff-bad{background:#1a0007;color:var(--red);}
+.sb-status{font-family:var(--mono);font-size:9px;margin-top:5px;padding:2px 6px;border-radius:3px;display:inline-block;}
+.st-pass{background:#001a0d;color:var(--green);}
+.st-near{background:#1a0e00;color:var(--amber);}
+.st-fail{background:#1a0007;color:var(--red);}
+.st-unk{background:var(--s3);color:var(--muted);}
+
+/* ── OTHER COLUMNS ── */
+.other-cols{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.col-chip{background:var(--s2);border:1px solid var(--b1);border-radius:5px;padding:6px 10px;font-family:var(--mono);font-size:11px;}
+.col-chip .cl{font-size:9px;color:var(--muted);margin-bottom:2px;}
+.col-chip .cv{font-weight:600;color:var(--blue);}
+
+/* ── BUGS ── */
+.bugs{border-top:1px solid var(--b1);padding-top:10px;margin-top:6px;}
+.bug-hdr{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--red);margin-bottom:6px;}
+.bug-item{display:flex;gap:7px;font-size:12px;color:#d09090;margin-bottom:4px;line-height:1.4;}
+.bug-item::before{content:'→';color:var(--red);font-family:var(--mono);flex-shrink:0;}
+.no-bugs{font-family:var(--mono);font-size:10px;color:var(--green);}
+
+.missing-box{background:#1a0e00;border:1px solid #3a2200;border-radius:7px;padding:12px;font-size:12px;color:var(--amber);font-family:var(--mono);line-height:1.6;margin-bottom:10px;}
+.csv-mid-missing{background:#120a18;border:1px solid #3a1a40;border-radius:7px;padding:12px;font-size:12px;color:#c9a0d8;font-family:var(--mono);line-height:1.6;margin-bottom:10px;}
+.csv-mid-missing code{font-size:11px;color:var(--muted);}
+
+.csv-ref-details{margin:12px 0 14px;border:1px solid var(--b1);border-radius:8px;background:var(--s1);overflow:hidden;}
+.csv-ref-details > summary{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--cyan);padding:10px 12px;cursor:pointer;list-style:none;user-select:none;}
+.csv-ref-details > summary::-webkit-details-marker{display:none;}
+.csv-ref-details > summary::before{content:'▸ ';color:var(--muted);}
+.csv-ref-details[open] > summary::before{content:'▾ ';}
+.csv-ref-body{padding:0 12px 12px;font-size:11px;color:var(--muted);line-height:1.55;border-top:1px solid var(--b1);}
+.csv-ref-table{width:100%;border-collapse:collapse;font-size:10px;margin:10px 0;}
+.csv-ref-table th,.csv-ref-table td{border:1px solid var(--b1);padding:6px 8px;text-align:left;vertical-align:top;}
+.csv-ref-table th{background:var(--s2);color:var(--text);font-family:var(--mono);}
+.csv-ref-table code{font-size:10px;color:var(--cyan);}
+
+/* misc */
+.hidden{display:none;}
+.sep{border:none;border-top:1px solid var(--b1);margin:16px 0;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--b1);border-radius:2px;}
+.step-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--violet));color:#000;font-size:11px;font-weight:700;flex-shrink:0;}
+
+/* custom JSON mapping */
+.json-paste{width:100%;min-height:72px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:11px;padding:10px;outline:none;resize:vertical;}
+.json-paste:focus{border-color:var(--cyan);}
+.custom-map-wrap{margin-top:10px;}
+.custom-map-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;background:var(--s2);border:1px solid var(--b1);border-radius:6px;padding:6px 10px;}
+.db-root-details{margin-bottom:10px;border:1px solid var(--b1);border-radius:8px;background:var(--s1);overflow:hidden;}
+.db-root-summary{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--cyan);padding:10px 12px;cursor:pointer;list-style:none;user-select:none;}
+.db-root-summary::-webkit-details-marker{display:none;}
+.db-root-summary::before{content:'▸ ';color:var(--muted);font-weight:600;}
+.db-root-details[open] > .db-root-summary::before{content:'▾ ';}
+.db-root-inner{padding:0 12px 12px;border-top:1px solid var(--b1);}
+.root-toggles{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin:14px 0 10px;padding:10px 12px;background:var(--s2);border:1px solid var(--b1);border-radius:8px;font-size:11px;}
+.root-toggles .h{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--muted);margin-right:4px;}
+.root-toggles label{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--mono);color:var(--text);}
+.root-toggles input{accent-color:var(--cyan);}
+.db-sec-title{font-family:var(--mono);font-size:10px;color:var(--amber);margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--b1);}
+.db-path-label{font-family:var(--mono);font-size:10px;color:var(--text);flex:1;min-width:180px;word-break:break-all;}
+.btn-mini{background:var(--s3);border:1px solid var(--b2);border-radius:4px;color:var(--muted);font-family:var(--mono);font-size:10px;padding:4px 10px;cursor:pointer;}
+.btn-mini:hover{border-color:var(--cyan);color:var(--cyan);}
+#dbSourceJsonStatus{font-family:var(--mono);font-size:10px;margin-top:6px;}
+.section-keys-inp{width:100%;max-width:420px;background:var(--s3);border:1px solid var(--b2);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 8px;}
+
+/* Field comparison (agent vs all DB paths) */
+.cmp-block{background:var(--s2);border:1px solid var(--b1);border-radius:10px;padding:0;margin-bottom:12px;overflow:hidden;}
+.cmp-block-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid var(--b1);background:linear-gradient(180deg,var(--s3),var(--s2));}
+.cmp-agent-box{flex:1;min-width:0;}
+.cmp-agent-lbl{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--amber);margin-bottom:4px;}
+.cmp-agent-val{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--amber);word-break:break-word;}
+.cmp-map-hint{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:4px;}
+.cmp-verdict-pill{font-family:var(--mono);font-size:10px;font-weight:700;padding:5px 10px;border-radius:6px;white-space:nowrap;flex-shrink:0;}
+.cvp-pass{background:#001a0d;color:var(--green);border:1px solid #0d4d2d;}
+.cvp-partial{background:#1a0e00;color:var(--amber);border:1px solid #3a2200;}
+.cvp-fail{background:#1a0007;color:var(--red);border:1px solid #4a1520;}
+.cvp-unk{background:var(--s3);color:var(--muted);border:1px solid var(--b1);}
+.cmp-db-grid{padding:10px 14px 14px;}
+.cmp-db-lbl{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--green);margin-bottom:8px;opacity:.9;}
+.cmp-loc{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center;padding:8px 10px;border-radius:6px;margin-bottom:6px;font-family:var(--mono);font-size:11px;border:1px solid var(--b1);background:var(--bg);}
+.cmp-loc:last-child{margin-bottom:0;}
+.cmp-path{color:var(--cyan);font-size:10px;word-break:break-all;line-height:1.35;}
+.cmp-val{font-weight:600;color:var(--text);}
+.cmp-val.miss{color:var(--muted);font-weight:500;}
+.cmp-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;font-family:var(--mono);}
+.cb-match{background:#001a0d;color:var(--green);}
+.cb-near{background:#1a0e00;color:var(--amber);}
+.cb-diff{background:#1a0007;color:var(--red);}
+.cb-absent{background:var(--s3);color:var(--muted);}
+.cmp-field-wrap{display:flex;flex-direction:column;gap:0;}
+.cmp-conflict{font-size:10px;color:var(--amber);font-family:var(--mono);padding:8px 10px;margin-bottom:8px;border-radius:6px;background:#1a1000;border:1px solid #3a2200;}
+.val-loading{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;padding:28px;}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-icon">⚡</div>
+  <div>
+    <h1>Content Score Validator</h1>
+    <p>DB field validation · Collapsible roots · Benchmark-aware</p>
+    <div class="db-pill">1,673 MIDs loaded</div>
+  </div>
+</div>
+
+<!-- STEP 1: PASTE -->
+<div class="card">
+  <div class="card-title"><span>1</span> Paste Agent Response</div>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+    Paste the agent table (tab / pipe / comma + header). If your export has <strong>MID</strong> but no campaign name, pick the <strong>MID</strong> column as the row label so each row matches your DB JSON. Column names for mapping come from the preview below after <strong>Parse table</strong>.
+  </p>
+  <textarea class="paste-area" id="pasteInput" placeholder="Date&#9;Sent&#9;Delivered&#9;Clicked&#9;CTR %&#9;Conversions&#9;Primary Emotion&#9;Template Type
+3-08&#9;26,798&#9;20,344&#9;55&#9;0.27%&#9;1&#9;Joy&#9;standard_apn
+Campaign Name&#9;Open Rate%&#9;CTR%&#9;CVR%&#9;Open Score&#9;Click Score&#9;Conv Score&#9;Revenue
+m1_wa_pb_b2b_7march_partner&#9;81.16%&#9;0.00%&#9;0.00%&#9;81&#9;1.59&#9;0.00&#9;0.000"></textarea>
+  <div class="parse-hint">Supports: tab / pipe (|) / comma separators. Header row required.</div>
+  <button class="btn-parse" onclick="parseInput()">→ Parse table</button>
+</div>
+
+<!-- STEP 2: PREVIEW + DB -->
+<div class="card hidden" id="mapCard">
+  <div class="card-title"><span>2</span> Parsed table & validation</div>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">
+    <strong>Row label column</strong> = the column that identifies each row in the report and (with JSON) looks up DB data — use your <strong>MID</strong> column when the CSV has no campaign name. Benchmark scores use the same row value as MID when that value is numeric. Expand <strong>Optional: benchmark scores</strong> only for Open/Click/Conv score columns. Toggle which DB roots to validate below.
+  </p>
+  <div id="columnPickerBar" class="col-pick-bar">
+    <div class="col-pick-row">
+      <label class="col-pick-lbl" for="colCampaign">Row label column (MID, campaign name, …)</label>
+      <select id="colCampaign" class="map-select" style="min-width:220px;" onchange="buildPreview();buildMidOverrides();"></select>
+    </div>
+    <details class="opt-scores-details">
+      <summary>Optional: benchmark scores &amp; metrics</summary>
+      <p class="help-mini">Open / Click / Conv scores and rates — only map columns that exist in your agent table.</p>
+      <div class="map-grid" id="optionalScoreMaps"></div>
+    </details>
+  </div>
+  <hr class="sep">
+  <div class="card-title" style="margin-bottom:10px;"><span>↓</span> Preview (first 3 rows)</div>
+  <div class="preview-wrap"><table id="previewTable"></table></div>
+
+  <hr class="sep">
+  <div class="card-title" style="margin-bottom:8px;"><span>◇</span> DB fields → agent columns</div>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+    DB paths are fixed under the four roots, then <code>title</code> / <code>overall</code> / <code>description</code>. Each dropdown lists columns from your <strong>parsed preview</strong>. Leave “skip” for fields you do not validate.
+  </p>
+  <label style="font-family:var(--mono);font-size:10px;color:var(--muted);display:block;margin-bottom:4px;">Section keys (comma-separated)</label>
+  <input type="text" class="section-keys-inp" id="sectionKeysInput" value="title,overall,description" title="If your channel uses different JSON keys, replace e.g. with headline,body,stats" oninput="if(parsedHeaders.length) buildDbFieldMappingUI()">
+  <p style="font-size:10px;color:var(--dim);margin:6px 0 12px;">Changing section keys updates the mapping list (after you have parsed a table). Click <strong>Parse table</strong> again after changing the pasted data.</p>
+
+  <label style="font-family:var(--mono);font-size:10px;color:var(--muted);display:block;margin-bottom:4px;">DB source JSON (one field)</label>
+  <p style="font-size:11px;color:var(--muted);margin-bottom:8px;">
+    Paste <strong>raw API/DB JSON</strong>: we unwrap common envelopes (<code>data</code>, <code>payload</code>, <code>content_details</code>, …), tolerate minor JSON issues, then detect either <strong>(A)</strong> MID/campaign-keyed objects, or <strong>(B)</strong> a single payload with <code>feature_values</code> / <code>open_feature_pts</code> / … at the top level.
+    The tool does <strong>not</strong> read the CSV file at runtime — validation uses whatever you paste here. The <strong>content details CSV</strong> is the same source of truth: each row’s <code>feature_values</code> column is the same structure as <code>feature_values</code> in this JSON (see reference below).
+  </p>
+  <details class="csv-ref-details">
+    <summary>Reference: content details CSV columns (tab-separated) — example MID 12431</summary>
+    <div class="csv-ref-body">
+      <p style="margin:0 0 8px;">File: <code>content_feature_validator/ui/vertical cid mid channel aid content_typ.csv</code>. Separator: <strong>tab</strong>. Header row lists 11 names; each data row has <strong>12</strong> tab-separated fields (one extra column between metadata and <code>feature_values</code> — treat <code>mid</code> as the 3rd field, 0-based index 2).</p>
+      <table class="csv-ref-table">
+        <thead>
+          <tr><th>Idx</th><th>Name (from header)</th><th>Role</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>0</td><td><code>vertical</code></td><td>Vertical (e.g. ecommerce)</td></tr>
+          <tr><td>1</td><td><code>cid</code></td><td>Campaign / content id</td></tr>
+          <tr><td>2</td><td><code>mid</code></td><td><strong>Message ID</strong> — use for row label / overrides; must appear in <code>content_details_mids.js</code> for the CSV warning</td></tr>
+          <tr><td>3</td><td><code>channelaid</code> (trim spaces)</td><td>Channel (e.g. apn)</td></tr>
+          <tr><td>4</td><td><code>content_type</code></td><td>Content type code (e.g. 0)</td></tr>
+          <tr><td>5</td><td>—</td><td>Extra label in data (e.g. <code>other</code>) — header row does not name this column separately</td></tr>
+          <tr><td>6</td><td><code>template_type</code></td><td>Template type (e.g. standard_apn)</td></tr>
+          <tr><td>7</td><td><code>feature_values</code></td><td>Large serialized dict: <code>title</code> / <code>overall</code> / <code>description</code> (same shape as DB JSON under <code>feature_values</code>)</td></tr>
+          <tr><td>8</td><td><code>open_feature_pts</code></td><td>Open feature points JSON</td></tr>
+          <tr><td>9</td><td><code>click_feature_pts</code></td><td>Click feature points JSON</td></tr>
+          <tr><td>10</td><td><code>conversion_feature_pts</code></td><td>Conversion feature points JSON</td></tr>
+          <tr><td>11</td><td><code>keywords_used</code></td><td>Keywords payload</td></tr>
+        </tbody>
+      </table>
+      <p style="margin:0 0 6px;"><strong>Cross-check: MID 12431</strong> (first data row in file, indices above):</p>
+      <table class="csv-ref-table">
+        <thead><tr><th>Field</th><th>Value (short)</th></tr></thead>
+        <tbody>
+          <tr><td><code>vertical</code></td><td>ecommerce</td></tr>
+          <tr><td><code>cid</code></td><td>81851</td></tr>
+          <tr><td><code>mid</code></td><td><strong>12431</strong></td></tr>
+          <tr><td>channel</td><td>apn</td></tr>
+          <tr><td><code>content_type</code></td><td>0</td></tr>
+          <tr><td>(unnamed in header)</td><td>other</td></tr>
+          <tr><td><code>template_type</code></td><td>standard_apn</td></tr>
+          <tr><td><code>feature_values</code> → title → dominant_emotion</td><td>Neutral</td></tr>
+          <tr><td><code>feature_values</code> → description → dominant_emotion</td><td>Excitement</td></tr>
+        </tbody>
+      </table>
+      <p style="margin:8px 0 0;font-size:10px;color:var(--dim);">Embedded benchmark scores in the page use <code>DB[&quot;12431&quot;]</code> → channel, template, open/click/conv means. For field validation, paste JSON that includes <code>feature_values</code> (or keyed by MID <code>12431</code>) so it matches the structure you expect from the CSV.</p>
+    </div>
+  </details>
+  <textarea class="json-paste" id="dbSourceJsonInput" style="min-height:100px;" oninput="updateDbSourceStatus()" placeholder='{
+  "12431": {
+    "feature_values": { "title": { "dominant_emotion": "Joy" }, "overall": {}, "description": {} },
+    "open_feature_pts": {},
+    "click_feature_pts": {},
+    "conversion_feature_pts": {}
+  }
+}'></textarea>
+  <div id="dbSourceJsonStatus" style="margin-top:6px;"></div>
+
+  <div class="root-toggles" id="rootToggles">
+    <span class="h">Include in validation &amp; report:</span>
+    <label><input type="checkbox" class="root-inc" data-root="feature_values" checked onchange="buildDbFieldMappingUI()"> feature_values</label>
+    <label><input type="checkbox" class="root-inc" data-root="open_feature_pts" checked onchange="buildDbFieldMappingUI()"> open_feature_pts</label>
+    <label><input type="checkbox" class="root-inc" data-root="click_feature_pts" checked onchange="buildDbFieldMappingUI()"> click_feature_pts</label>
+    <label><input type="checkbox" class="root-inc" data-root="conversion_feature_pts" checked onchange="buildDbFieldMappingUI()"> conversion_feature_pts</label>
+  </div>
+
+  <div class="custom-map-wrap" id="customMapWrap">
+    <div id="dbFieldMapContainer"></div>
+  </div>
+</div>
+
+<!-- STEP 3: MID + VALIDATE -->
+<div class="card hidden" id="midCard">
+  <div class="card-title"><span>3</span> MID overrides &amp; validate</div>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+    If the row label column is not MID, you can enter MIDs per row below for benchmark scores (optional).
+  </p>
+  <div id="midOverrides"></div>
+  <button class="btn-validate" id="btnValidate" onclick="runValidation()">⚡ Run Validation</button>
+</div>
+
+<!-- RESULTS -->
+<div id="results"></div>
+
+<script src="content_details_mids.js"></script>
+<script>
+const DB = {"12431":["apn","standard_apn",0.3889,0.5556,0.5222],"12440":["apn","standard_apn",0.3333,0.3333,0.2889],"12441":["apn","standard_apn",0.2778,0.3889,0.3444],"12442":["apn","standard_apn",0.2778,0.4444,0.2889],"12443":["apn","standard_apn",0.3889,0.3333,0.1778],"12444":["apn","standard_apn",0.5556,0.5,0.3444],"12445":["apn","standard_apn",0.5,0.5,0.6333],"12450":["apn","standard_apn",0.3889,0.5556,0.5222],"12451":["apn","standard_apn",0.4444,0.5,0.3556],"12452":["apn","standard_apn",0.4444,0.5,0.3556],"12453":["apn","standard_apn",0.3889,0.5556,0.4111],"12461":["apn","standard_apn",0.6111,0.3333,0.4111],"12462":["apn","standard_apn",0.5556,0.4445,0.5222],"12463":["apn","standard_apn",0.3333,0.4444,0.2333],"12464":["apn","standard_apn",0.2778,0.5,0.3444],"12467":["apn","standard_apn",0.3333,0.4444,0.3],"12468":["apn","standard_apn",0.2778,0.4444,0.2333],"12469":["apn","standard_apn",0.5,0.5555,0.3444],"12470":["apn","standard_apn",0.5556,0.5,0.3444],"12472":["apn","standard_apn",0.4444,0.5,0.4667],"12473":["apn","standard_apn",0.3889,0.5556,0.5222],"12474":["apn","standard_apn",0.4444,0.5556,0.3556],"12475":["apn","standard_apn",0.4444,0.5556,0.3556],"12478":["apn","standard_apn",0.3889,0.5556,0.4667],"12479":["apn","standard_apn",0.4444,0.5,0.3556],"17966":["email","standard_email",0.4349,0.3397,0.546],"11744":["apn","standard_apn",0.5,0.6111,0.5778],"11745":["apn","standard_apn",0.5,0.6111,0.5778],"17967":["email","standard_email",0.546,0.3873,0.546],"17992":["email","standard_email",0.7714,0.2063,0.6603],"17993":["email","standard_email",0.7238,0.3841,0.6127],"17997":["email","standard_email",0.4349,0.273,0.546],"4737509":["whatsapp","media",0.4167,0.5834,0.3417],"2517":["sms","standard_sms",0.75,0.5,0.75],"2847":["bpn","standard_bpn",0.55,0.5833,0.55],"12505":["apn","standard_apn",0.3333,0.3889,0.2333],"12480":["apn","standard_apn",0.5,0.2778,0.2444],"12481":["apn","standard_apn",0.5,0.2778,0.2444],"12482":["apn","standard_apn",0.4445,0.2222,0.1333],"12483":["apn","standard_apn",0.4445,0.2222,0.1333],"12484":["apn","standard_apn",0.3889,0.5556,0.5778],"12485":["apn","standard_apn",0.4444,0.5,0.4667],"12486":["apn","standard_apn",0.3889,0.5556,0.4111],"12487":["apn","standard_apn",0.4444,0.5,0.3556],"12488":["apn","standard_apn",0.4445,0.6667,0.5889],"12489":["apn","standard_apn",0.4445,0.6667,0.5222],"12493":["apn","standard_apn",0.4444,0.5,0.3556],"12494":["apn","standard_apn",0.3889,0.5556,0.4111],"12495":["apn","standard_apn",0.3889,0.5556,0.5222],"12496":["apn","standard_apn",0.4444,0.5,0.4111],"2461":["sms","standard_sms",0.25,1.0,0.75],"2812":["bpn","standard_bpn",0.6,0.5,0.6],"12497":["apn","standard_apn",0.4444,0.5,0.3556],"12498":["apn","standard_apn",0.3889,0.5556,0.4111],"12501":["apn","standard_apn",0.3889,0.5556,0.4111],"12502":["apn","standard_apn",0.3889,0.5556,0.4111],"12503":["apn","standard_apn",0.6667,0.2778,0.3556],"12504":["apn","standard_apn",0.6667,0.2778,0.3556],"17998":["email","standard_email",0.7238,0.273,0.6127],"17999":["email","standard_email",0.4159,0.454,0.527],"18000":["email","standard_email",0.546,0.3397,0.546],"18001":["email","standard_email",0.4571,0.2699,0.6127],"18004":["email","standard_email",0.7714,0.254,0.6603],"18005":["email","standard_email",0.4794,0.4063,0.4794],"18006":["email","standard_email",0.3905,0.3841,0.546],"18007":["email","standard_email",0.7238,0.273,0.6127],"18008":["email","standard_email",0.5905,0.3873,0.4794],"4737517":["whatsapp","carousel",0.0,0.3,0.8334],"4737519":["whatsapp","carousel",0.225,0.4,0.4667],"4737522":["whatsapp","carousel",0.0,0.3,0.8334],"4737523":["whatsapp","carousel",0.225,0.4,0.6333],"12506":["apn","standard_apn",0.3333,0.3889,0.2333],"12509":["apn","standard_apn",0.2222,0.2778,0.1778],"12510":["apn","standard_apn",0.2222,0.2778,0.1778],"12511":["apn","standard_apn",0.1667,0.2778,0.2889],"12519":["apn","standard_apn",0.3889,0.5556,0.4111],"12520":["apn","standard_apn",0.3889,0.5556,0.4111],"12521":["apn","standard_apn",0.6111,0.1667,0.1889],"12522":["apn","standard_apn",0.6111,0.1111,0.1889],"12525":["apn","standard_apn",0.8333,0.3889,0.2333],"12526":["apn","standard_apn",0.8333,0.3889,0.2333],"12527":["apn","standard_apn",0.0556,0.6111,0.5778],"12528":["apn","standard_apn",0.0556,0.6111,0.5778],"12529":["apn","standard_apn",0.3889,0.3889,0.4778],"12530":["apn","standard_apn",0.3889,0.3333,0.4778],"12531":["apn","standard_apn",0.4444,0.5,0.4111],"12532":["apn","standard_apn",0.3889,0.5556,0.4111],"18009":["email","standard_email",0.7238,0.3206,0.6127],"18010":["email","standard_email",0.819,0.3175,0.6603],"18011":["email","standard_email",0.8857,0.2063,0.727],"18012":["email","standard_email",0.819,0.273,0.6603],"4737521":["whatsapp","carousel",0.0,0.3,0.8334],"4737524":["whatsapp","carousel",0.0,0.3,0.8334],"4737525":["whatsapp","media",0.4583,0.5417,0.3417],"4737526":["whatsapp","carousel",0.0,0.3,0.8334],"4737527":["whatsapp","carousel",0.0,0.3,0.8334],"12507":["apn","standard_apn",0.4445,0.5,0.6333],"12508":["apn","standard_apn",0.4445,0.5,0.6333],"12513":["apn","standard_apn",0.1667,0.2222,0.2333],"12514":["apn","standard_apn",0.1667,0.2222,0.2333],"12533":["apn","standard_apn",0.3889,0.5556,0.4667],"12534":["apn","standard_apn",0.3889,0.5556,0.4111],"12535":["apn","standard_apn",0.7778,0.2778,0.3],"2464":["sms","standard_sms",0.0,0.75,0.25],"12536":["apn","standard_apn",0.7778,0.2778,0.3],"12538":["apn","standard_apn",0.5556,0.2778,0.1778],"12539":["apn","standard_apn",0.5,0.2778,0.1778],"12540":["apn","standard_apn",0.2778,0.2222,0.2333],"12541":["apn","standard_apn",0.2778,0.2778,0.3],"12544":["apn","standard_apn",0.1667,0.2778,0.4556],"12545":["apn","standard_apn",0.1667,0.3333,0.4667],"11870":["apn","standard_apn",0.3889,0.2778,0.3444],"18013":["email","standard_email",0.7714,0.273,0.6127],"18014":["email","standard_email",0.819,0.273,0.6603],"18015":["email","standard_email",0.7238,0.3206,0.6127],"18016":["email","standard_email",0.5175,0.5746,0.6286],"18017":["email","standard_email",0.7238,0.273,0.6127],"18018":["email","standard_email",0.3397,0.3492,0.6286],"18019":["email","standard_email",0.6444,0.254,0.8857],"18020":["email","standard_email",0.8857,0.254,0.727],"18021":["email","standard_email",0.3397,0.3492,0.6286],"2849":["bpn","standard_bpn",0.45,0.5,0.45],"12542":["apn","standard_apn",0.7778,0.2778,0.3],"12543":["apn","standard_apn",0.7778,0.2778,0.3],"12549":["apn","standard_apn",0.5556,0.2778,0.1222],"12550":["apn","standard_apn",0.6667,0.2222,0.1889],"12551":["apn","standard_apn",0.1667,0.5,0.4222],"12553":["apn","standard_apn",0.2222,0.3889,0.2889],"12554":["apn","standard_apn",0.3889,0.6667,0.7556],"12555":["apn","standard_apn",0.3889,0.6111,0.8111],"12556":["apn","standard_apn",0.7222,0.2222,0.3],"2465":["sms","standard_sms",0.0,0.75,0.25],"2466":["sms","standard_sms",0.0,0.75,0.25],"12557":["apn","standard_apn",0.7222,0.2222,0.3],"18022":["email","standard_email",0.454,0.5905,0.6127],"2850":["bpn","standard_bpn",0.3833,0.3333,0.3833],"12516":["apn","standard_apn",0.2222,0.6111,0.3778],"12546":["apn","standard_apn",0.5556,0.1667,0.1222],"12547":["apn","standard_apn",0.5,0.2222,0.1778],"12559":["apn","standard_apn",0.2778,0.3333,0.4],"12560":["apn","standard_apn",0.2222,0.3333,0.4],"12561":["apn","standard_apn",0.3889,0.4444,0.4111],"12562":["apn","standard_apn",0.3889,0.3889,0.4111],"12563":["apn","standard_apn",0.6667,0.2778,0.3556],"12564":["apn","standard_apn",0.6667,0.2778,0.3556],"12565":["apn","standard_apn",0.6111,0.2778,0.5222],"12566":["apn","standard_apn",0.6111,0.2778,0.5222],"12568":["apn","standard_apn",0.2222,0.3889,0.4667],"12569":["apn","standard_apn",0.2778,0.3333,0.4111],"12570":["apn","standard_apn",0.2778,0.2778,0.4667],"12571":["apn","standard_apn",0.1111,0.3333,0.6],"12572":["apn","standard_apn",0.2778,0.2778,0.4667],"12573":["apn","standard_apn",0.2778,0.2778,0.4667],"12587":["apn","standard_apn",0.2222,0.3889,0.4667],"12588":["apn","standard_apn",0.1111,0.3333,0.5222],"12600":["apn","standard_apn",0.2778,0.5,0.3778],"18023":["email","standard_email",0.546,0.3873,0.546],"18024":["email","standard_email",0.546,0.3873,0.546],"18025":["email","standard_email",0.7714,0.3206,0.6603],"18026":["email","standard_email",0.7238,0.3682,0.6127],"18027":["email","standard_email",0.8857,0.254,0.727],"11796":["apn","standard_apn",0.3889,0.4444,0.2444],"11797":["apn","standard_apn",0.3889,0.4444,0.2444],"18029":["email","standard_email",0.546,0.3206,0.546],"18035":["email","standard_email",0.3365,0.8222,0.0476],"4737528":["whatsapp","media",0.1111,0.2222,0.1778],"4737529":["whatsapp","media",0.3333,0.4444,0.5111],"4737530":["whatsapp","media",0.4445,0.5556,0.4],"4737531":["whatsapp","media",0.3889,0.5,0.3555],"4737532":["whatsapp","media",0.1111,0.2222,0.1778],"4737533":["whatsapp","media",0.2222,0.3333,0.1778],"4737534":["whatsapp","media",0.2778,0.3889,0.2444],"4737535":["whatsapp","media",0.1111,0.2222,0.1778],"4737557":["whatsapp","carousel",0.125,0.0,0.9],"4737558":["whatsapp","carousel",0.125,0.0,0.7333],"12548":["apn","standard_apn",0.6111,0.3333,0.2556],"12558":["apn","standard_apn",0.4444,0.4444,0.4222],"12602":["apn","standard_apn",0.1111,0.6111,0.4778],"12603":["apn","standard_apn",0.3333,0.7222,0.5778],"12604":["apn","standard_apn",0.7778,0.2222,0.3],"12605":["apn","standard_apn",0.7222,0.2222,0.3],"12606":["apn","standard_apn",0.2778,0.2778,0.4667],"12607":["apn","standard_apn",0.2222,0.3333,0.5222],"12608":["apn","standard_apn",0.2778,0.2778,0.4667],"12609":["apn","standard_apn",0.1667,0.2222,0.4667],"12610":["apn","standard_apn",0.3889,0.5556,0.5778],"12611":["apn","standard_apn",0.3889,0.5556,0.5778],"12612":["apn","standard_apn",0.3889,0.3889,0.4667],"12613":["apn","standard_apn",0.3889,0.3889,0.4667],"12615":["apn","standard_apn",0.2778,0.2778,0.5222],"11865":["apn","standard_apn",0.2778,0.6111,0.5333],"12616":["apn","standard_apn",0.2222,0.3333,0.5222],"12617":["apn","standard_apn",0.2778,0.2778,0.4667],"12618":["apn","standard_apn",0.2778,0.2778,0.4667],"12619":["apn","standard_apn",0.3889,0.7222,0.5222],"12620":["apn","standard_apn",0.5,0.6667,0.4667],"18041":["email","standard_email",0.7714,0.3206,0.6127],"18042":["email","standard_email",0.7238,0.3682,0.6127],"18043":["email","standard_email",0.8857,0.254,0.727],"18044":["email","standard_email",0.819,0.3206,0.6603],"18045":["email","standard_email",0.3714,0.4794,0.6603],"18046":["email","standard_email",0.254,0.7429,0.254],"4737559":["whatsapp","media",0.1667,0.1667,0.1667],"4737561":["whatsapp","carousel",0.125,0.0,0.9],"2535":["sms","standard_sms",0.25,0.75,0.75],"2856":["rcs","carousel",-1.0,-1.0,-1.0],"2857":["bpn","standard_bpn",0.0833,0.3333,0.0833],"11871":["apn","standard_apn",0.3889,0.2222,0.2333],"12621":["apn","standard_apn",0.7222,0.2778,0.3],"12622":["apn","standard_apn",0.7778,0.2222,0.3],"12623":["apn","standard_apn",0.4444,0.2222,0.3],"12624":["apn","standard_apn",0.4444,0.2222,0.3],"12625":["apn","standard_apn",0.2222,0.3333,0.3556],"12626":["apn","standard_apn",0.1667,0.4444,0.3556],"12627":["apn","standard_apn",0.2778,0.2778,0.4667],"12628":["apn","standard_apn",0.1111,0.2778,0.5333],"12631":["apn","standard_apn",0.2778,0.3333,0.4111],"12632":["apn","standard_apn",0.2222,0.3889,0.4667],"12633":["apn","standard_apn",0.2222,0.3333,0.5222],"12634":["apn","standard_apn",0.1667,0.2778,0.4667],"12635":["apn","standard_apn",0.1111,0.3889,0.5778],"12636":["apn","standard_apn",0.1111,0.3889,0.5222],"12637":["apn","standard_apn",0.5556,0.3889,0.4111],"12638":["apn","standard_apn",0.5556,0.3889,0.4111],"12639":["apn","standard_apn",0.2778,0.2222,0.2444],"12642":["apn","standard_apn",0.2778,0.1667,0.2444],"12643":["apn","standard_apn",0.3333,0.7222,0.6889],"12644":["apn","standard_apn",0.3333,0.7222,0.6889],"12648":["apn","standard_apn",0.1667,0.3333,0.4667],"12649":["apn","standard_apn",0.2222,0.3889,0.4667],"12650":["apn","standard_apn",0.2222,0.3333,0.5222],"11798":["apn","standard_apn",0.5,0.5,0.5556],"12651":["apn","standard_apn",0.2778,0.2778,0.4667],"12652":["apn","standard_apn",0.2778,0.2778,0.4667],"12654":["apn","standard_apn",0.2222,0.3333,0.5222],"18039":["email","standard_email",0.4603,0.454,0.5079],"18040":["email","standard_email",0.546,0.3397,0.546],"18047":["email","standard_email",0.6127,0.3841,0.5016],"18048":["email","standard_email",0.6127,0.4794,0.5016],"18049":["email","standard_email",0.5333,0.3651,0.7746],"18050":["email","standard_email",0.7746,0.3651,0.6159],"18051":["email","standard_email",0.7079,0.4318,0.5492],"18052":["email","standard_email",0.419,0.4318,0.7079],"18055":["email","standard_email",0.4762,0.527,0.6794],"18056":["email","standard_email",0.4349,0.3206,0.7238],"18057":["email","standard_email",0.546,0.4318,0.7048],"18058":["email","standard_email",0.6603,0.4318,0.819],"18059":["email","standard_email",0.4127,0.4063,0.4127],"18060":["email","standard_email",0.4571,0.4318,0.6603],"18061":["email","standard_email",0.6603,0.4318,0.819],"18062":["email","standard_email",0.6603,0.5429,0.819],"11891":["apn","standard_apn",0.6667,0.2778,0.3],"4737564":["whatsapp","carousel",0.225,0.1,0.7333],"4737565":["whatsapp","carousel",0.225,0.1,0.7333],"4737566":["whatsapp","carousel",0.125,0.0,0.9],"4737567":["whatsapp","carousel",0.125,0.0,0.9],"2536":["sms","standard_sms",0.25,0.75,0.75],"2537":["sms","standard_sms",0.25,1.0,0.5],"2858":["bpn","standard_bpn",0.3333,0.1667,0.3333],"2859":["bpn","standard_bpn",0.5167,0.5,0.5167],"2860":["bpn","standard_bpn",0.3333,0.25,0.3333],"12641":["apn","standard_apn",0.4444,0.5,0.8111],"12645":["apn","standard_apn",0.4444,0.7778,0.4667],"12646":["apn","standard_apn",0.3889,0.8333,0.4667],"12647":["apn","standard_apn",0.4444,0.5,0.8111],"12655":["apn","standard_apn",0.3333,0.1667,0.3],"12656":["apn","standard_apn",0.3889,0.1111,0.2444],"11899":["apn","standard_apn",0.6667,0.1667,0.1333],"12657":["apn","standard_apn",0.5555,0.5555,0.6444],"12658":["apn","standard_apn",0.5555,0.5555,0.6444],"12659":["apn","standard_apn",0.2778,0.2778,0.4667],"11905":["apn","standard_apn",0.8889,0.3333,0.2333],"12660":["apn","standard_apn",0.2222,0.3333,0.5222],"12663":["apn","standard_apn",0.4444,0.5556,0.5222],"12664":["apn","standard_apn",0.4444,0.5556,0.5222],"12665":["apn","standard_apn",0.5,0.3889,0.4],"12666":["apn","standard_apn",0.4445,0.4445,0.4556],"12667":["apn","standard_apn",0.2778,0.5,0.4222],"12668":["apn","standard_apn",0.2778,0.5,0.4222],"12669":["apn","standard_apn",0.2778,0.6111,0.1222],"12670":["apn","standard_apn",0.2778,0.5556,0.1222],"12671":["apn","standard_apn",0.6667,0.5,0.4667],"12672":["apn","standard_apn",0.6667,0.5,0.3556],"12673":["apn","standard_apn",0.2778,0.2778,0.4667],"12674":["apn","standard_apn",0.2222,0.1667,0.4667],"12675":["apn","standard_apn",0.5,0.6111,0.7556],"12676":["apn","standard_apn",0.5,0.6111,0.7],"18063":["email","standard_email",0.4571,0.4318,0.6603],"18064":["email","standard_email",0.6603,0.4318,0.819],"18065":["email","standard_email",0.5651,0.527,0.7238],"18066":["email","standard_email",0.5746,0.6762,0.6857],"18067":["email","standard_email",0.6603,0.5429,0.819],"4737568":["whatsapp","media",0.5834,0.5834,0.6417],"4737569":["whatsapp","media",0.625,0.625,0.6917],"4737570":["whatsapp","text",1.0,1.0,1.0],"4737571":["whatsapp","text",0.8889,0.8889,0.8889],"4737572":["whatsapp","text",1.0,1.0,1.0],"4737573":["whatsapp","text",0.8889,0.8889,0.8889],"4737574":["whatsapp","text",1.0,1.0,1.0],"11984":["apn","standard_apn",0.2778,0.3889,0.1778],"4737575":["whatsapp","text",1.0,1.0,1.0],"11988":["apn","standard_apn",0.5,0.1667,0.2444],"2538":["sms","standard_sms",0.25,0.5,0.5],"2539":["sms","standard_sms",0.25,0.5,0.5],"2540":["sms","standard_sms",0.25,0.5,0.5],"2541":["sms","standard_sms",0.25,0.5,0.5],"2861":["bpn","standard_bpn",0.0833,0.4167,0.0833],"12677":["apn","standard_apn",0.2778,0.2778,0.2889],"12678":["apn","standard_apn",0.2778,0.2778,0.2889],"12679":["apn","standard_apn",0.2778,0.3333,0.5222],"12680":["apn","standard_apn",0.2222,0.3889,0.5778],"12681":["apn","standard_apn",0.4444,0.3333,0.3556],"12682":["apn","standard_apn",0.4444,0.3333,0.3556],"2482":["sms","standard_sms",0.5,0.5,0.5],"12683":["apn","standard_apn",0.5556,0.2778,0.1778],"12684":["apn","standard_apn",0.5,0.2778,0.2333],"12685":["apn","standard_apn",0.3333,0.3889,0.1778],"12686":["apn","standard_apn",0.3333,0.3889,0.1778],"12687":["apn","standard_apn",0.2222,0.4444,0.2333],"12688":["apn","standard_apn",0.2222,0.4444,0.2333],"12689":["apn","standard_apn",0.2778,0.4444,0.2333],"12690":["apn","standard_apn",0.2778,0.4444,0.1778],"12691":["apn","standard_apn",0.5,0.6667,0.5889],"12692":["apn","standard_apn",0.5555,0.6667,0.4778],"12693":["apn","standard_apn",0.3333,0.3889,0.1778],"2816":["bpn","standard_bpn",0.85,0.75,0.85],"12694":["apn","standard_apn",0.2778,0.4444,0.2333],"18068":["email","standard_email",0.5492,0.5429,0.7079],"4737576":["whatsapp","text",0.3333,0.3333,0.0],"2548":["sms","standard_sms",0.25,0.5,0.5],"2862":["bpn","standard_bpn",0.3833,0.4167,0.3833],"11994":["apn","standard_apn",0.6111,0.1111,0.1222],"11995":["apn","standard_apn",0.6111,0.1111,0.1222],"12717":["apn","standard_apn",0.7222,0.2222,0.3],"12718":["apn","standard_apn",0.6667,0.2222,0.3556],"12720":["apn","standard_apn",0.5556,0.5555,0.4111],"12721":["apn","standard_apn",0.5556,0.5555,0.4111],"12722":["apn","standard_apn",0.6667,0.2222,0.2556],"12723":["apn","standard_apn",0.6667,0.2778,0.2556],"18075":["email","standard_email",0.7079,0.3206,0.5492],"18076":["email","standard_email",0.7079,0.273,0.5492],"18077":["email","standard_email",0.6603,0.3206,0.5492],"18079":["email","standard_email",0.6603,0.3206,0.5492],"2863":["bpn","standard_bpn",0.4667,0.25,0.4667],"12719":["apn","standard_apn",0.6667,0.1111,0.0667],"12724":["apn","standard_apn",0.5556,0.1111,0.1333],"12725":["apn","standard_apn",0.5556,0.1111,0.1333],"12726":["apn","standard_apn",0.6667,0.1111,0.0667],"12731":["apn","standard_apn",0.2778,0.3333,0.2889],"12732":["apn","standard_apn",0.3889,0.2778,0.2333],"18084":["email","standard_email",0.4349,0.3397,0.546],"18085":["email","standard_email",0.4349,0.3397,0.546],"18086":["email","standard_email",0.4349,0.273,0.546],"4737587":["whatsapp","media",0.7084,0.7917,0.5584],"4737588":["whatsapp","media",0.5,0.5834,0.6417],"2864":["bpn","standard_bpn",0.6333,0.3333,0.6333],"12727":["apn","standard_apn",0.5556,0.2222,0.2444],"12728":["apn","standard_apn",0.6111,0.2778,0.1889],"12733":["apn","standard_apn",0.5556,0.3889,0.3],"12734":["apn","standard_apn",0.5556,0.3889,0.3],"12735":["apn","standard_apn",0.6667,0.2778,0.3556],"12736":["apn","standard_apn",0.6111,0.2778,0.2889],"12737":["apn","standard_apn",0.5,0.3889,0.4111],"12738":["apn","standard_apn",0.5,0.3889,0.4111],"12739":["apn","standard_apn",0.3333,0.3333,0.1778],"12740":["apn","standard_apn",0.3333,0.3333,0.1778],"12020":["apn","standard_apn",0.6667,0.5,0.2889],"18078":["email","standard_email",0.4127,0.6318,0.1905],"18080":["email","standard_email",0.7079,0.3682,0.5968],"18081":["email","standard_email",0.6603,0.3206,0.5492],"18087":["email","standard_email",0.3841,0.7746,0.0952],"4737586":["whatsapp","media",0.5417,0.5417,0.5083],"4737589":["whatsapp","media",0.7084,0.7917,0.5584],"2549":["sms","standard_sms",0.25,0.75,0.75],"2865":["bpn","standard_bpn",0.25,0.5,0.25],"2484":["sms","standard_sms",0.5,0.75,0.75],"12022":["apn","standard_apn",0.7222,0.1667,0.1222],"12729":["apn","standard_apn",0.2778,0.5555,0.4111],"12730":["apn","standard_apn",0.2778,0.5555,0.4111],"12741":["apn","standard_apn",0.7778,0.4444,0.2889],"12742":["apn","standard_apn",0.7778,0.4444,0.2889],"12751":["apn","standard_apn",0.2778,0.3333,0.3],"12752":["apn","standard_apn",0.2778,0.3333,0.3],"18082":["email","standard_email",0.7079,0.3682,0.5968],"18083":["email","standard_email",0.6603,0.3206,0.5492],"18091":["email","standard_email",0.6603,0.273,0.5492],"18092":["email","standard_email",0.6127,0.3206,0.5016],"18093":["email","standard_email",0.6603,0.273,0.5492],"18100":["email","standard_email",0.6603,0.273,0.5492],"2866":["bpn","standard_bpn",0.5333,0.3333,0.5333],"12743":["apn","standard_apn",0.6111,0.1667,0.0667],"12744":["apn","standard_apn",0.6111,0.1667,0.0667],"12030":["apn","standard_apn",0.7222,0.3333,0.4778],"12745":["apn","standard_apn",0.6111,0.6111,0.4111],"12746":["apn","standard_apn",0.5,0.6111,0.3444],"2818":["bpn","standard_bpn",0.6167,0.6667,0.6167],"12032":["apn","standard_apn",0.6111,0.0556,0.1889],"12755":["apn","standard_apn",0.5556,0.3333,0.4111],"12756":["apn","standard_apn",0.6667,0.2778,0.3556],"18102":["email","standard_email",0.4349,0.3397,0.546],"18103":["email","standard_email",0.4349,0.3873,0.546],"18108":["email","standard_email",0.4349,0.3873,0.546],"4737590":["whatsapp","media",0.75,0.8334,0.425],"4737591":["whatsapp","media",0.625,0.625,0.5083],"2867":["bpn","standard_bpn",0.2833,0.3333,0.2833],"12747":["apn","standard_apn",0.3889,0.1111,0.1222],"12748":["apn","standard_apn",0.4445,0.1111,0.1222],"12757":["apn","standard_apn",0.5,0.2222,0.2889],"12758":["apn","standard_apn",0.5556,0.2222,0.2333],"12761":["apn","standard_apn",0.3889,0.2222,0.0667],"12762":["apn","standard_apn",0.4444,0.2222,0.1333],"18101":["email","standard_email",0.6603,0.273,0.5492],"18104":["email","standard_email",0.6603,0.273,0.5492],"2550":["sms","standard_sms",0.75,0.5,0.75],"2868":["bpn","standard_bpn",0.6167,0.3333,0.6167],"12753":["apn","standard_apn",0.6111,0.1111,0.1333],"12754":["apn","standard_apn",0.5556,0.1667,0.1889],"12759":["apn","standard_apn",0.8333,0.2778,0.3556],"12760":["apn","standard_apn",0.8333,0.2778,0.3556],"12763":["apn","standard_apn",0.6111,0.2222,0.1889],"12053":["apn","standard_apn",0.3889,0.2778,0.2444],"12764":["apn","standard_apn",0.6111,0.1667,0.1889],"18105":["email","standard_email",0.6603,0.273,0.5492],"18106":["email","standard_email",0.6603,0.273,0.5492],"18109":["email","standard_email",0.5968,0.4794,0.6603],"18110":["email","standard_email",0.5016,0.3206,0.5016],"18111":["email","standard_email",0.5968,0.254,0.5492],"18117":["email","standard_email",0.5016,0.3206,0.5016],"2869":["bpn","standard_bpn",0.3833,0.4167,0.3833],"12765":["apn","standard_apn",0.6111,0.3333,0.4],"12766":["apn","standard_apn",0.6667,0.3333,0.4],"12065":["apn","standard_apn",0.6667,0.1667,0.1222],"12767":["apn","standard_apn",0.4444,0.4444,0.2444],"12768":["apn","standard_apn",0.3889,0.4444,0.3],"12771":["apn","standard_apn",0.2778,0.2222,0.3],"12772":["apn","standard_apn",0.2222,0.2778,0.3556],"18107":["email","standard_email",0.3206,0.8857,0.254],"18124":["email","standard_email",0.3238,0.273,0.4349],"4737593":["whatsapp","media",0.5,0.5834,0.6917],"4737594":["whatsapp","media",0.7084,0.7917,0.6083],"2870":["bpn","standard_bpn",0.15,0.3333,0.15],"12769":["apn","standard_apn",0.6667,0.1667,0.1889],"12770":["apn","standard_apn",0.6667,0.1667,0.1889],"12773":["apn","standard_apn",0.5,0.1667,0.1222],"12774":["apn","standard_apn",0.5,0.1667,0.1222],"12785":["apn","standard_apn",0.3333,0.2222,0.3556],"12786":["apn","standard_apn",0.3889,0.1667,0.3],"18118":["email","standard_email",0.5016,0.3682,0.454],"18119":["email","standard_email",0.5016,0.3206,0.5016],"4737592":["whatsapp","media",0.5834,0.5834,0.6083],"2871":["bpn","standard_bpn",0.6167,0.3333,0.6167],"12775":["apn","standard_apn",0.7222,0.3333,0.3444],"12776":["apn","standard_apn",0.7222,0.3889,0.4667],"12789":["apn","standard_apn",0.5,0.2222,0.1889],"12790":["apn","standard_apn",0.5,0.2222,0.1889],"12859":["apn","standard_apn",0.5,0.2778,0.3556],"12860":["apn","standard_apn",0.5,0.2778,0.3556],"18088":["email","standard_email",0.3651,0.5841,0.1429],"18121":["email","standard_email",0.7301,0.3206,0.6825],"18125":["email","standard_email",0.6159,0.3206,0.5682],"18129":["email","standard_email",0.3841,0.7746,0.0952],"2564":["sms","standard_sms",0.25,0.75,0.75],"2872":["bpn","standard_bpn",0.4833,0.0833,0.4833],"2876":["bpn","standard_bpn",0.2167,0.3333,0.2167],"12777":["apn","standard_apn",0.5,0.3889,0.2778],"12778":["apn","standard_apn",0.5,0.4444,0.4],"12787":["apn","standard_apn",0.3333,0.2778,0.4],"12788":["apn","standard_apn",0.3333,0.2778,0.4],"12864":["apn","standard_apn",0.2222,0.2778,0.5222],"12865":["apn","standard_apn",0.2778,0.2222,0.4667],"18126":["email","standard_email",0.2571,0.4063,0.3682],"18127":["email","standard_email",0.546,0.546,0.6571],"18130":["email","standard_email",0.4794,0.5937,0.5905],"2873":["bpn","standard_bpn",0.25,0.3333,0.25],"12779":["apn","standard_apn",0.2222,0.3333,0.5111],"12780":["apn","standard_apn",0.2222,0.3333,0.5111],"12862":["apn","standard_apn",0.7222,0.3333,0.3556],"12863":["apn","standard_apn",0.7222,0.3333,0.3556],"12869":["apn","standard_apn",0.2778,0.4444,0.3],"12870":["apn","standard_apn",0.2778,0.4444,0.3],"18132":["email","standard_email",0.6127,0.527,0.7238],"18159":["email","standard_email",0.5651,0.527,0.6762],"4737596":["whatsapp","media",0.5833,0.6667,0.475],"2487":["sms","standard_sms",0.75,0.25,0.25],"2823":["bpn","standard_bpn",0.55,0.3333,0.55],"4737645":["whatsapp","media",0.5417,0.625,0.5083],"4737646":["whatsapp","media",0.625,0.625,0.5083],"2874":["bpn","standard_bpn",0.2333,0.5,0.2333],"12781":["apn","standard_apn",0.2778,0.3889,0.4667],"12782":["apn","standard_apn",0.3333,0.3889,0.5222],"12873":["apn","standard_apn",0.2222,0.2778,0.4667],"12874":["apn","standard_apn",0.2222,0.3333,0.4667],"12875":["apn","standard_apn",0.2222,0.5,0.2333],"12876":["apn","standard_apn",0.2778,0.5,0.2333],"18160":["email","standard_email",0.5651,0.527,0.6762],"18161":["email","standard_email",0.5651,0.527,0.6762],"18168":["email","standard_email",0.4984,0.5937,0.6095],"18169":["email","standard_email",0.7714,0.3206,0.6603],"2824":["bpn","standard_bpn",0.6,0.5833,0.6],"18170":["email","standard_email",0.7524,0.3873,0.6413],"18171":["email","standard_email",0.819,0.254,0.7079],"2875":["rcs","carousel",-1.0,-1.0,-1.0],"12783":["apn","standard_apn",0.5,0.4444,0.4556],"12784":["apn","standard_apn",0.6111,0.3889,0.4667],"2825":["bpn","standard_bpn",0.4,0.5,0.4],"12871":["apn","standard_apn",0.7222,0.2222,0.2333],"12872":["apn","standard_apn",0.7222,0.3333,0.2333],"12878":["apn","standard_apn",0.3889,0.3889,0.3],"12879":["apn","standard_apn",0.3333,0.4444,0.3667],"4737647":["whatsapp","media",0.6667,0.75,0.3417],"4737648":["whatsapp","media",0.6667,0.75,0.3417],"2565":["sms","standard_sms",0.5,0.75,0.75],"2877":["bpn","standard_bpn",0.25,0.3333,0.25],"12867":["apn","standard_apn",0.2222,0.5,0.5222],"12868":["apn","standard_apn",0.2222,0.5,0.5222],"12880":["apn","standard_apn",0.7222,0.2222,0.3],"12881":["apn","standard_apn",0.7222,0.2222,0.3],"12886":["apn","standard_apn",0.4445,0.3889,0.4111],"12887":["apn","standard_apn",0.4445,0.3889,0.4111],"18162":["email","standard_email",0.4825,0.3397,0.4349],"18172":["email","standard_email",0.7238,0.4159,0.6127],"18175":["email","standard_email",0.7238,0.4159,0.6127],"2878":["bpn","standard_bpn",0.15,0.5,0.15],"12884":["apn","standard_apn",0.2778,0.4444,0.3],"12885":["apn","standard_apn",0.2778,0.3889,0.3],"12888":["apn","standard_apn",0.2778,0.5,0.1778],"12889":["apn","standard_apn",0.2778,0.5556,0.1778],"12890":["apn","standard_apn",0.2778,0.1667,0.1778],"12891":["apn","standard_apn",0.3333,0.1667,0.1222],"18174":["email","standard_email",0.7238,0.4159,0.6127],"18176":["email","standard_email",0.819,0.254,0.7079],"18177":["email","standard_email",0.3206,0.5937,0.4794],"18178":["email","standard_email",0.454,0.4318,0.5651],"2827":["bpn","standard_bpn",0.3,0.25,0.3],"18180":["email","standard_email",0.3206,0.7429,0.254],"18181":["email","standard_email",0.5682,0.4127,0.6318],"18182":["email","standard_email",0.5682,0.4318,0.6318],"2879":["bpn","standard_bpn",0.1667,0.25,0.1667],"12892":["apn","standard_apn",0.8333,0.4444,0.3444],"12893":["apn","standard_apn",0.8333,0.4444,0.3444],"12894":["apn","standard_apn",0.2222,0.3333,0.5222],"12895":["apn","standard_apn",0.2778,0.3333,0.5222],"12896":["apn","standard_apn",0.6111,0.1111,0.0667],"12897":["apn","standard_apn",0.3889,0.1111,0.1222],"18189":["email","standard_email",0.254,0.7429,0.254],"18190":["email","standard_email",0.3238,0.3397,0.4349],"4737649":["whatsapp","media",0.5417,0.625,0.5083],"4737650":["whatsapp","media",0.7917,0.875,0.35],"2566":["sms","standard_sms",0.75,0.5,0.75],"2880":["bpn","standard_bpn",0.35,0.6667,0.35],"12898":["apn","standard_apn",0.4444,0.6111,0.4667],"12899":["apn","standard_apn",0.4444,0.6111,0.4667],"12900":["apn","standard_apn",0.3889,0.2778,0.1889],"12901":["apn","standard_apn",0.3889,0.2778,0.1889],"12902":["apn","standard_apn",0.6667,0.2778,0.2333],"12903":["apn","standard_apn",0.6111,0.3333,0.2333],"18185":["email","standard_email",0.5682,0.4127,0.6318],"18186":["email","standard_email",0.5682,0.4318,0.6318],"18191":["email","standard_email",0.3206,0.7429,0.254],"18194":["email","standard_email",0.273,0.8381,0.2063],"4737651":["whatsapp","media",0.3333,0.3333,0.2444],"4737652":["whatsapp","media",0.7222,0.8333,0.3111],"2489":["sms","standard_sms",0.5,0.25,0.25],"2831":["bpn","standard_bpn",0.3167,0.4167,0.3167],"4737653":["whatsapp","media",0.7222,0.8333,0.3111],"4737655":["whatsapp","media",0.7222,0.8333,0.2444],"2881":["bpn","standard_bpn",0.15,0.3333,0.15],"12904":["apn","standard_apn",0.3889,0.3333,0.2444],"12905":["apn","standard_apn",0.3889,0.3333,0.2444],"12906":["apn","standard_apn",0.2778,0.2778,0.4],"12907":["apn","standard_apn",0.2778,0.2778,0.4],"12912":["apn","standard_apn",0.3333,0.5,0.2889],"12913":["apn","standard_apn",0.3333,0.5,0.2889],"18187":["email","standard_email",0.454,0.4318,0.5651],"18188":["email","standard_email",0.454,0.4318,0.5651],"18192":["email","standard_email",0.5492,0.3841,0.6603],"18193":["email","standard_email",0.5651,0.273,0.454],"18195":["email","standard_email",0.3238,0.3397,0.4349],"18196":["email","standard_email",0.5492,0.3841,0.6603],"18197":["email","standard_email",0.5968,0.4318,0.6603],"18204":["email","standard_email",0.3206,0.8381,0.254],"2832":["bpn","standard_bpn",0.2167,0.4167,0.2167],"4737656":["whatsapp","media",0.875,0.9583,0.3],"2882":["bpn","standard_bpn",0.3,0.5,0.3],"12908":["apn","standard_apn",0.2778,0.3889,0.5222],"12909":["apn","standard_apn",0.2778,0.2778,0.5111],"12914":["apn","standard_apn",0.3333,0.1111,0.3556],"12915":["apn","standard_apn",0.3333,0.1111,0.3556],"12918":["apn","standard_apn",0.5,0.3889,0.6889],"12919":["apn","standard_apn",0.5,0.3889,0.6889],"18211":["email","standard_email",0.273,0.8381,0.254],"18212":["email","standard_email",0.5016,0.4603,0.5016],"18213":["email","standard_email",0.5016,0.4603,0.5016],"18214":["email","standard_email",0.5016,0.527,0.5016],"18215":["email","standard_email",0.3206,0.7905,0.254],"4737654":["whatsapp","media",0.625,0.7084,0.425],"4737657":["whatsapp","media",0.625,0.7084,0.525],"4737658":["whatsapp","media",0.625,0.625,0.6083],"4737660":["whatsapp","media",0.7083,0.7916,0.2666],"4737661":["whatsapp","media",0.2222,0.2222,0.1778],"4737662":["whatsapp","media",0.7778,0.7778,0.2444],"2490":["sms","standard_sms",0.75,0.25,0.25],"2567":["sms","standard_sms",0.25,0.5,0.5],"2883":["bpn","standard_bpn",0.4667,0.3333,0.4667],"12910":["apn","standard_apn",0.5556,0.1111,0.1333],"12911":["apn","standard_apn",0.5,0.2222,0.1889],"12916":["apn","standard_apn",0.3333,0.3333,0.3444],"12917":["apn","standard_apn",0.3333,0.3333,0.3444],"12920":["apn","standard_apn",0.2778,0.3333,0.5222],"12921":["apn","standard_apn",0.3333,0.2778,0.4667],"12924":["apn","standard_apn",0.2778,0.3333,0.4556],"12925":["apn","standard_apn",0.2778,0.3333,0.4],"12926":["apn","standard_apn",0.2778,0.5,0.3],"12927":["apn","standard_apn",0.2778,0.5,0.3],"18205":["email","standard_email",0.5492,0.3841,0.6603],"18206":["email","standard_email",0.5492,0.3841,0.6603],"18216":["email","standard_email",0.3206,0.8381,0.254],"4737663":["whatsapp","media",0.8333,0.8333,0.35],"2884":["bpn","standard_bpn",0.3,0.5,0.3],"12922":["apn","standard_apn",0.5556,0.2778,0.1222],"2834":["bpn","standard_bpn",0.6,0.5833,0.6],"12176":["apn","standard_apn",0.8889,0.3333,0.3],"12923":["apn","standard_apn",0.6111,0.2778,0.1222],"12928":["apn","standard_apn",0.3333,0.2222,0.2444],"12929":["apn","standard_apn",0.3889,0.2222,0.1889],"12932":["apn","standard_apn",0.5,0.2222,0.2222],"12933":["apn","standard_apn",0.5,0.2778,0.2222],"12934":["apn","standard_apn",0.2778,0.3889,0.4667],"12935":["apn","standard_apn",0.2778,0.3889,0.4667],"18202":["email","standard_email",0.5492,0.3841,0.6603],"18203":["email","standard_email",0.5492,0.3841,0.6603],"18207":["email","standard_email",0.3714,0.3873,0.4825],"18208":["email","standard_email",0.5016,0.273,0.5016],"18209":["email","standard_email",0.6603,0.273,0.5492],"18217":["email","standard_email",0.6603,0.2063,0.5492],"18218":["email","standard_email",0.6603,0.273,0.5492],"2835":["bpn","standard_bpn",0.3667,0.4167,0.3667],"12207":["apn","standard_apn",0.4445,0.1667,0.1222],"18223":["email","standard_email",0.4318,0.6318,0.1429],"4737665":["whatsapp","media",0.875,0.9583,0.35],"2885":["bpn","standard_bpn",0.5333,0.6667,0.5333],"12930":["apn","standard_apn",0.4445,0.3333,0.1222],"12931":["apn","standard_apn",0.3889,0.3333,0.1222],"12936":["apn","standard_apn",0.3333,0.1111,0.1778],"12938":["apn","standard_apn",0.3333,0.1111,0.1778],"12939":["apn","standard_apn",0.7222,0.3889,0.3444],"12940":["apn","standard_apn",0.7222,0.3889,0.3444],"18224":["email","standard_email",0.273,0.8857,0.2063],"4737664":["whatsapp","media",0.5833,0.6667,0.425],"4737666":["whatsapp","media",0.5833,0.6667,0.2167],"4737667":["whatsapp","media",0.5833,0.75,0.3417],"4737668":["whatsapp","media",0.875,0.9583,0.3],"2568":["sms","standard_sms",0.25,1.0,0.5],"12941":["apn","standard_apn",0.3889,0.1667,0.0667],"12942":["apn","standard_apn",0.3889,0.1667,0.0667],"12975":["apn","standard_apn",0.3889,0.2778,0.4667],"12976":["apn","standard_apn",0.4444,0.2222,0.4111],"18219":["email","standard_email",0.6603,0.273,0.5492],"18220":["email","standard_email",0.6603,0.273,0.5492],"18225":["email","standard_email",0.273,0.8857,0.2063],"4737669":["whatsapp","media",0.8333,0.9167,0.35],"2836":["bpn","standard_bpn",0.5333,0.5,0.5333],"12209":["apn","standard_apn",0.5,0.2222,0.2556],"2890":["bpn","standard_bpn",0.0833,0.6667,0.0833],"12981":["apn","standard_apn",0.7778,0.3889,0.3556],"12982":["apn","standard_apn",0.7778,0.4444,0.4778],"12992":["apn","standard_apn",0.2778,0.5556,0.3],"12993":["apn","standard_apn",0.2222,0.5556,0.3],"12996":["apn","standard_apn",0.2778,0.2222,0.4556],"12997":["apn","standard_apn",0.3889,0.3333,0.1222],"18221":["email","standard_email",0.6603,0.273,0.5492],"18222":["email","standard_email",0.6603,0.273,0.5492],"18230":["email","standard_email",0.3206,0.6952,0.254],"18244":["email","standard_email",0.6603,0.3492,0.5492],"18245":["email","standard_email",0.6127,0.3206,0.5016],"18250":["email","standard_email",0.6127,0.273,0.5016],"18251":["email","standard_email",0.6127,0.273,0.5016],"18252":["email","standard_email",0.1429,0.5682,0.254],"4737679":["whatsapp","media",0.8333,0.9167,0.35],"4737835":["whatsapp","carousel",0.575,1.0,0.0],"4737836":["whatsapp","carousel",0.575,1.0,0.0],"4737837":["whatsapp","carousel",0.45,0.8334,0.0],"4737838":["whatsapp","carousel",0.575,1.0,0.0],"4737839":["whatsapp","carousel",0.575,1.0,0.0],"4737840":["whatsapp","carousel",0.45,0.8334,0.0],"2891":["bpn","standard_bpn",0.2167,0.4167,0.2167],"12998":["apn","standard_apn",0.4444,0.6111,0.5222],"12999":["apn","standard_apn",0.5,0.6111,0.5222],"13000":["apn","standard_apn",0.3889,0.2222,0.1222],"13001":["apn","standard_apn",0.3889,0.2222,0.1222],"13002":["apn","standard_apn",0.2778,0.5556,0.4],"13003":["apn","standard_apn",0.3889,0.4444,0.3444],"2837":["bpn","standard_bpn",0.2833,0.75,0.2833],"18243":["email","standard_email",0.273,0.7905,0.254],"4737825":["whatsapp","media",0.9167,1.0,0.35],"4737841":["whatsapp","media",0.6667,0.75,0.3417],"4737842":["whatsapp","media",0.5417,0.5417,0.425],"4737843":["whatsapp","media",0.4583,0.4584,0.3916],"4737844":["whatsapp","media",0.5417,0.7084,0.3916],"2581":["sms","standard_sms",0.25,0.75,0.25],"2892":["bpn","standard_bpn",0.1667,0.25,0.1667],"13004":["apn","standard_apn",0.6111,0.1667,0.1333],"13005":["apn","standard_apn",0.6111,0.1667,0.1333],"13008":["apn","standard_apn",0.7778,0.3333,0.3556],"13009":["apn","standard_apn",0.5556,0.2222,0.1889],"13014":["apn","standard_apn",0.2778,0.4444,0.5111],"13015":["apn","standard_apn",0.2778,0.4444,0.5111],"18253":["email","standard_email",0.6127,0.273,0.5016],"18254":["email","standard_email",0.6127,0.273,0.5016],"18259":["email","standard_email",0.5492,0.4349,0.5492],"18260":["email","standard_email",0.273,0.8857,0.254],"4737845":["whatsapp","media",0.875,0.9583,0.3],"2893":["bpn","standard_bpn",0.4,0.4167,0.4],"13010":["apn","standard_apn",0.2222,0.1667,0.2444],"13011":["apn","standard_apn",0.2222,0.1111,0.2444],"13012":["apn","standard_apn",0.6667,0.3333,0.4],"13013":["apn","standard_apn",0.7222,0.3333,0.3444],"13016":["apn","standard_apn",0.4445,0.1667,0.1778],"13017":["apn","standard_apn",0.4445,0.1667,0.1778],"18255":["email","standard_email",0.6127,0.273,0.5016],"18256":["email","standard_email",0.6127,0.273,0.5016],"18257":["email","standard_email",0.7079,0.3206,0.5492],"18258":["email","standard_email",0.6603,0.273,0.5016],"18261":["email","standard_email",0.2254,0.8857,0.2063],"18262":["email","standard_email",0.7556,0.3206,0.5968],"18263":["email","standard_email",0.8222,0.254,0.6635],"4737846":["whatsapp","media",0.9167,1.0,0.35],"2894":["bpn","standard_bpn",0.5167,0.4167,0.5167],"2895":["bpn","standard_bpn",0.6,0.4167,0.6],"13006":["apn","standard_apn",0.6111,0.2778,0.3],"13007":["apn","standard_apn",0.6111,0.2778,0.3],"13018":["apn","standard_apn",0.5,0.1667,0.1111],"13019":["apn","standard_apn",0.5,0.1667,0.1111],"13020":["apn","standard_apn",0.6111,0.2222,0.1333],"13021":["apn","standard_apn",0.6111,0.2222,0.1333],"13022":["apn","standard_apn",0.3333,0.3333,0.4778],"13023":["apn","standard_apn",0.3333,0.3333,0.4778],"13026":["apn","standard_apn",0.6667,0.5,0.5778],"13027":["apn","standard_apn",0.6111,0.5555,0.6333],"18269":["email","standard_email",0.273,0.8381,0.254],"4737847":["whatsapp","media",0.8333,0.9167,0.35],"4737848":["whatsapp","media",0.7084,0.7917,0.4334],"4737849":["whatsapp","media",0.5,0.5834,0.6417],"2582":["sms","standard_sms",0.5,0.25,0.25],"2897":["bpn","standard_bpn",0.1667,0.25,0.1667],"13024":["apn","standard_apn",0.5556,0.2778,0.3111],"13025":["apn","standard_apn",0.5,0.3889,0.3667],"13028":["apn","standard_apn",0.4444,0.6667,0.4111],"13029":["apn","standard_apn",0.5,0.6111,0.4111],"13032":["apn","standard_apn",0.6667,0.3333,0.4111],"13033":["apn","standard_apn",0.7222,0.3333,0.4778],"13034":["apn","standard_apn",0.2778,0.3333,0.2889],"13035":["apn","standard_apn",0.2778,0.3333,0.2889],"18264":["email","standard_email",0.7079,0.3206,0.5968],"18265":["email","standard_email",0.7746,0.3206,0.6159],"18270":["email","standard_email",0.4349,0.3873,0.546],"18271":["email","standard_email",0.3682,0.6127,0.5905],"18276":["email","standard_email",0.4825,0.3397,0.546],"2840":["bpn","standard_bpn",0.5333,0.3333,0.5333],"4737851":["whatsapp","carousel",0.45,0.8334,0.0],"4737852":["whatsapp","carousel",0.45,0.8334,0.0],"4737853":["whatsapp","carousel",0.325,0.6666,0.0],"4737854":["whatsapp","carousel",0.45,0.8334,0.0],"4737855":["whatsapp","carousel",0.45,0.8334,0.0],"2899":["bpn","standard_bpn",0.0833,0.1667,0.0833],"13030":["apn","standard_apn",0.5556,0.5555,0.3444],"13031":["apn","standard_apn",0.6111,0.5,0.2889],"13039":["apn","standard_apn",0.5,0.1667,0.0556],"13040":["apn","standard_apn",0.5,0.1667,0.0556],"13041":["apn","standard_apn",0.1667,0.3889,0.4556],"13042":["apn","standard_apn",0.1667,0.3333,0.4556],"13055":["apn","standard_apn",0.3333,0.2222,0.3556],"13056":["apn","standard_apn",0.3889,0.1667,0.3],"18266":["email","standard_email",0.6603,0.3206,0.5492],"18267":["email","standard_email",0.6603,0.3206,0.5492],"2841":["bpn","standard_bpn",0.3167,0.5833,0.3167],"18273":["email","standard_email",0.6127,0.3206,0.5016],"18274":["email","standard_email",0.6603,0.3206,0.5492],"18277":["email","standard_email",0.6603,0.273,0.5492],"18278":["email","standard_email",0.5492,0.4318,0.6127],"4737856":["whatsapp","carousel",0.225,0.5666,0.6333],"4737857":["whatsapp","carousel",0.35,0.7333,0.4667],"4738003":["whatsapp","carousel",0.45,0.8334,0.0],"4738004":["whatsapp","carousel",0.575,1.0,0.0],"4738005":["whatsapp","carousel",0.575,1.0,0.0],"4738006":["whatsapp","carousel",0.45,0.8334,0.0],"4738007":["whatsapp","carousel",0.575,1.0,0.0],"4738008":["whatsapp","carousel",0.575,1.0,0.0],"2904":["bpn","standard_bpn",0.2333,0.3333,0.2333],"13057":["apn","standard_apn",0.6111,0.3889,0.4556],"13058":["apn","standard_apn",0.6111,0.3333,0.4556],"13060":["apn","standard_apn",0.3889,0.2222,0.1778],"13061":["apn","standard_apn",0.5,0.1667,0.0667],"13062":["apn","standard_apn",0.2222,0.3333,0.4667],"13063":["apn","standard_apn",0.2222,0.3333,0.5222],"2842":["bpn","standard_bpn",0.3333,0.25,0.3333],"13069":["apn","standard_apn",0.2778,0.2222,0.2333],"13070":["apn","standard_apn",0.3333,0.1667,0.1778],"18295":["email","standard_email",0.3016,0.7429,0.3016],"18296":["email","standard_email",0.4349,0.3397,0.546],"18297":["email","standard_email",0.4349,0.3397,0.546],"18298":["email","standard_email",0.4349,0.3397,0.546],"4737850":["whatsapp","carousel",0.45,0.8334,0.0],"4738009":["whatsapp","media",0.375,0.5417,0.3917],"4738010":["whatsapp","media",0.5,0.5834,0.2667],"4738011":["whatsapp","media",0.5833,0.75,0.2167],"4738012":["whatsapp","media",0.5833,0.75,0.3417],"4738013":["whatsapp","carousel",0.45,0.8334,0.0],"4738014":["whatsapp","carousel",0.575,1.0,0.0],"4738015":["whatsapp","carousel",0.45,0.8334,0.0],"4738016":["whatsapp","carousel",0.575,1.0,0.0],"4738017":["whatsapp","carousel",0.575,1.0,0.0],"2583":["sms","standard_sms",0.75,0.25,0.25],"2905":["bpn","standard_bpn",0.3833,0.25,0.3833],"13071":["apn","standard_apn",0.5,0.1667,0.2333],"13072":["apn","standard_apn",0.5,0.2222,0.2333],"13073":["apn","standard_apn",0.6111,0.2222,0.1889],"13074":["apn","standard_apn",0.6111,0.2222,0.1889],"13075":["apn","standard_apn",0.5556,0.3333,0.2889],"13076":["apn","standard_apn",0.6667,0.3333,0.3556],"2845":["bpn","standard_bpn",0.3,0.3333,0.3],"12430":["apn","standard_apn",0.3889,0.5556,0.5222],"13077":["apn","standard_apn",0.4445,0.4445,0.5778],"13078":["apn","standard_apn",0.4445,0.4445,0.5778],"18279":["email","standard_email",0.5016,0.4127,0.6127],"18280":["email","standard_email",0.5016,0.4318,0.6127],"18299":["email","standard_email",0.4349,0.3397,0.546],"18300":["email","standard_email",0.4349,0.4349,0.546],"18303":["email","standard_email",0.4349,0.3397,0.546],"13079":["apn","standard_apn",0.3333,0.3889,0.3],"13080":["apn","standard_apn",0.3333,0.4444,0.3],"13081":["apn","standard_apn",0.3333,0.3333,0.2889],"13082":["apn","standard_apn",0.3889,0.2778,0.2333],"13091":["apn","standard_apn",0.5555,0.6667,0.4556],"13092":["apn","standard_apn",0.6667,0.5556,0.2889],"18281":["email","standard_email",0.5016,0.4318,0.6127],"18282":["email","standard_email",0.3682,0.4984,0.4794],"18301":["email","standard_email",0.6603,0.3206,0.6603],"18302":["email","standard_email",0.6762,0.273,0.5651],"18305":["email","standard_email",0.6603,0.3206,0.6603],"18306":["email","standard_email",0.6603,0.3206,0.6603],"4738018":["whatsapp","media",0.5833,0.5833,0.1333],"2846":["bpn","standard_bpn",0.3,0.5833,0.3],"2516":["sms","standard_sms",0.25,0.5,0.5],"2519":["sms","standard_sms",0.25,0.5,0.5],"2848":["bpn","standard_bpn",0.4,0.0833,0.4],"2520":["sms","standard_sms",0.25,0.5,0.5],"2534":["sms","standard_sms",0.25,0.75,0.75],"2851":["bpn","standard_bpn",0.6833,0.6667,0.6833],"4737562":["whatsapp","carousel",0.125,0.0,0.9],"4737563":["whatsapp","carousel",0.125,0.0,0.7333],"11712":["apn","standard_apn",0.6111,0.2222,0.1333],"11713":["apn","standard_apn",0.6111,0.2222,0.1333],"11720":["apn","standard_apn",0.5556,0.1667,0.1222],"11721":["apn","standard_apn",0.5556,0.1667,0.1222],"11722":["apn","standard_apn",0.4445,0.7778,0.6889],"11723":["apn","standard_apn",0.4445,0.7778,0.6889],"11727":["apn","standard_apn",0.4445,0.3333,0.1889],"11730":["apn","standard_apn",0.4445,0.3333,0.1889],"11731":["apn","standard_apn",0.3889,0.3333,0.4],"11732":["apn","standard_apn",0.3889,0.3333,0.4],"11733":["apn","standard_apn",0.3889,0.3333,0.4],"11734":["apn","standard_apn",0.3889,0.3333,0.4],"11735":["apn","standard_apn",0.3889,0.3333,0.4],"11736":["apn","standard_apn",0.3889,0.3333,0.4],"11737":["apn","standard_apn",0.3889,0.3333,0.2444],"11738":["apn","standard_apn",0.4445,0.3333,0.1889],"11739":["apn","standard_apn",0.3889,0.3333,0.4],"11740":["apn","standard_apn",0.3889,0.3333,0.4],"11741":["apn","standard_apn",0.4445,0.7222,0.5222],"11742":["apn","standard_apn",0.4445,0.7222,0.5222],"4737135":["whatsapp","carousel",0.0,0.3,0.4334],"4737136":["whatsapp","carousel",0.0,0.3,0.4334],"4737137":["whatsapp","carousel",0.45,0.8334,0.0],"4737138":["whatsapp","carousel",0.45,0.8334,0.0],"4737139":["whatsapp","carousel",0.35,0.7333,0.0],"4737140":["whatsapp","text",0.3333,0.3333,0.0],"11746":["apn","standard_apn",0.4445,0.2222,0.1111],"11747":["apn","standard_apn",0.4445,0.2222,0.1111],"11748":["apn","standard_apn",0.5555,0.1111,0.1778],"11749":["apn","standard_apn",0.5555,0.1111,0.1778],"11750":["apn","standard_apn",0.5,0.3333,0.1778],"11751":["apn","standard_apn",0.5,0.3333,0.1778],"11754":["apn","standard_apn",0.3889,0.3333,0.4],"11755":["apn","standard_apn",0.3889,0.3333,0.4],"11756":["apn","standard_apn",0.3889,0.3333,0.4],"11757":["apn","standard_apn",0.3889,0.3333,0.4],"11758":["apn","standard_apn",0.3889,0.3333,0.4],"11759":["apn","standard_apn",0.3889,0.3333,0.4],"11760":["apn","standard_apn",0.2222,0.6111,0.4222],"11764":["apn","standard_apn",0.2222,0.6111,0.4222],"17628":["email","standard_email",0.7714,0.4159,0.6603],"17629":["email","standard_email",0.7714,0.4159,0.6603],"17643":["email","standard_email",0.2381,0.6127,0.4603],"17653":["email","standard_email",0.5016,0.5746,0.6127],"17654":["email","standard_email",0.454,0.5746,0.5651],"17659":["email","standard_email",0.454,0.5746,0.5651],"4737141":["whatsapp","carousel",0.0,0.3,0.2666],"4737142":["whatsapp","carousel",0.0,0.3,0.2666],"11752":["apn","standard_apn",0.4445,0.1667,0.1778],"11753":["apn","standard_apn",0.4445,0.1667,0.1778],"11778":["apn","standard_apn",0.4445,0.3333,0.4],"11779":["apn","standard_apn",0.4445,0.3333,0.4],"11780":["apn","standard_apn",0.5,0.3333,0.1778],"11781":["apn","standard_apn",0.5,0.3333,0.1778],"11788":["apn","standard_apn",0.3889,0.3333,0.1778],"11789":["apn","standard_apn",0.3889,0.3333,0.1778],"11800":["apn","standard_apn",0.5555,0.2778,0.1778],"11801":["apn","standard_apn",0.5555,0.2778,0.1778],"11802":["apn","standard_apn",0.5555,0.2778,0.1778],"11803":["apn","standard_apn",0.5555,0.2778,0.1778],"11804":["apn","standard_apn",0.4444,0.3333,0.3556],"11805":["apn","standard_apn",0.4444,0.3333,0.3556],"17630":["email","standard_email",0.7714,0.4159,0.6603],"17631":["email","standard_email",0.7714,0.4159,0.6603],"17645":["email","standard_email",0.5476,0.7143,0.5476],"17650":["email","standard_email",0.5016,0.4318,0.6127],"17651":["email","standard_email",0.5016,0.5746,0.6127],"17655":["email","standard_email",0.5016,0.5746,0.6127],"17656":["email","standard_email",0.454,0.5746,0.5651],"17660":["email","standard_email",0.5016,0.5746,0.6127],"17661":["email","standard_email",0.5016,0.5746,0.6127],"17665":["email","standard_email",0.5016,0.5746,0.6127],"17675":["email","standard_email",0.5016,0.5746,0.6127],"17676":["email","standard_email",0.454,0.5746,0.5651],"17677":["email","standard_email",0.454,0.5746,0.5651],"4737143":["whatsapp","carousel",0.0,0.3,0.2666],"4737144":["whatsapp","carousel",0.0,0.3,0.2666],"4737145":["whatsapp","media",0.4583,0.4583,0.6333],"4737150":["whatsapp","carousel",0.0,0.3,0.2666],"4737151":["whatsapp","carousel",0.0,0.3,0.2666],"2463":["sms","standard_sms",0.0,0.75,0.25],"11790":["apn","standard_apn",0.3889,0.4444,0.3],"11791":["apn","standard_apn",0.3889,0.4444,0.3],"11806":["apn","standard_apn",0.2778,0.5,0.3667],"11807":["apn","standard_apn",0.2222,0.5,0.3],"11808":["apn","standard_apn",0.3333,0.3333,0.3444],"11809":["apn","standard_apn",0.3333,0.3333,0.3444],"11810":["apn","standard_apn",0.5555,0.2778,0.1778],"11811":["apn","standard_apn",0.5555,0.2778,0.1778],"11812":["apn","standard_apn",0.3889,0.3333,0.3556],"11813":["apn","standard_apn",0.3889,0.3333,0.3556],"17668":["email","standard_email",0.3968,0.454,0.3492],"17672":["email","standard_email",0.5016,0.5746,0.6127],"17673":["email","standard_email",0.454,0.5746,0.5651],"17678":["email","standard_email",0.5016,0.5746,0.6127],"17679":["email","standard_email",0.3206,0.727,0.1429],"17682":["email","standard_email",0.5016,0.5746,0.6127],"17683":["email","standard_email",0.454,0.5746,0.5651],"17688":["email","standard_email",0.5016,0.5746,0.6127],"11792":["apn","standard_apn",0.6111,0.2222,0.1333],"11793":["apn","standard_apn",0.5556,0.2222,0.1889],"11814":["apn","standard_apn",0.2222,0.5,0.3556],"11815":["apn","standard_apn",0.2222,0.5,0.3556],"11816":["apn","standard_apn",0.1667,0.6667,0.4556],"11817":["apn","standard_apn",0.1667,0.6667,0.4556],"11818":["apn","standard_apn",0.5,0.5556,0.5778],"11819":["apn","standard_apn",0.5,0.5556,0.5778],"11828":["apn","standard_apn",0.5555,0.2778,0.1778],"11829":["apn","standard_apn",0.5555,0.2778,0.1778],"11830":["apn","standard_apn",0.5555,0.2778,0.1778],"11831":["apn","standard_apn",0.5555,0.2778,0.1778],"11836":["apn","standard_apn",0.5555,0.2778,0.1778],"11837":["apn","standard_apn",0.5555,0.2778,0.1778],"11843":["apn","standard_apn",0.5555,0.2778,0.1778],"11844":["apn","standard_apn",0.5555,0.2778,0.1778],"17666":["email","standard_email",0.5016,0.5746,0.6127],"17669":["email","standard_email",0.5016,0.5746,0.6127],"17680":["email","standard_email",0.5016,0.5746,0.6127],"17681":["email","standard_email",0.454,0.5746,0.5651],"17684":["email","standard_email",0.5016,0.5746,0.6127],"17685":["email","standard_email",0.454,0.5746,0.5651],"17686":["email","standard_email",0.5016,0.5746,0.6127],"17687":["email","standard_email",0.454,0.5746,0.5651],"17695":["email","standard_email",0.5016,0.5746,0.6127],"17696":["email","standard_email",0.454,0.5746,0.5651],"17697":["email","standard_email",0.454,0.5746,0.5651],"4737163":["whatsapp","media",0.5,0.5834,0.6333],"4737164":["whatsapp","media",0.5,0.5834,0.6333],"4737165":["whatsapp","media",0.5,0.5834,0.6333],"11794":["apn","standard_apn",0.4444,0.1667,0.3],"11795":["apn","standard_apn",0.4444,0.1667,0.3],"11824":["apn","standard_apn",0.5,0.5,0.7333],"11825":["apn","standard_apn",0.5,0.5,0.7333],"11826":["apn","standard_apn",0.4445,0.6111,0.7444],"11827":["apn","standard_apn",0.4445,0.6111,0.7444],"11839":["apn","standard_apn",0.5555,0.2778,0.1778],"11840":["apn","standard_apn",0.5555,0.2778,0.1778],"11845":["apn","standard_apn",0.5555,0.2778,0.1778],"11846":["apn","standard_apn",0.5555,0.2778,0.1778],"11847":["apn","standard_apn",0.5555,0.2778,0.1778],"11848":["apn","standard_apn",0.5555,0.2778,0.1778],"17670":["email","standard_email",0.5016,0.5746,0.6127],"17671":["email","standard_email",0.5016,0.5746,0.6127],"17689":["email","standard_email",0.5016,0.5746,0.6127],"17690":["email","standard_email",0.454,0.5746,0.5651],"17691":["email","standard_email",0.5016,0.5746,0.6127],"17692":["email","standard_email",0.454,0.5746,0.5651],"17698":["email","standard_email",0.5016,0.5746,0.6127],"17699":["email","standard_email",0.454,0.5746,0.5651],"17700":["email","standard_email",0.5016,0.5746,0.6127],"17701":["email","standard_email",0.454,0.5746,0.5651],"17702":["email","standard_email",0.454,0.5746,0.5651],"17707":["email","standard_email",0.5016,0.5746,0.6127],"4737166":["whatsapp","media",0.5,0.5,0.7167],"4737167":["whatsapp","carousel",0.425,0.0,0.3333],"4737168":["whatsapp","carousel",0.425,0.0,0.3333],"4737169":["whatsapp","carousel",0.425,0.0,0.3333],"4737170":["whatsapp","carousel",0.425,0.0,0.3333],"4737172":["whatsapp","carousel",0.425,0.0,0.3333],"11820":["apn","standard_apn",0.2222,0.5,0.4667],"11821":["apn","standard_apn",0.2222,0.5,0.4667],"11849":["apn","standard_apn",0.1667,0.3333,0.3556],"11850":["apn","standard_apn",0.1667,0.3333,0.3556],"11851":["apn","standard_apn",0.5555,0.2778,0.1778],"11852":["apn","standard_apn",0.5555,0.2778,0.1778],"11853":["apn","standard_apn",0.5555,0.2778,0.1778],"11854":["apn","standard_apn",0.5555,0.2778,0.1778],"11855":["apn","standard_apn",0.5555,0.2778,0.1778],"11856":["apn","standard_apn",0.5555,0.2778,0.1778],"11859":["apn","standard_apn",0.5555,0.2778,0.1778],"11860":["apn","standard_apn",0.5555,0.2778,0.1778],"11861":["apn","standard_apn",0.5555,0.2778,0.1778],"11862":["apn","standard_apn",0.5555,0.2778,0.1778],"11863":["apn","standard_apn",0.2222,0.7222,0.2889],"11864":["apn","standard_apn",0.2222,0.7222,0.3444],"17693":["email","standard_email",0.5016,0.5746,0.6127],"17694":["email","standard_email",0.454,0.5746,0.5651],"17703":["email","standard_email",0.454,0.5746,0.5651],"17704":["email","standard_email",0.454,0.5746,0.5651],"17708":["email","standard_email",0.5016,0.5746,0.6127],"17710":["email","standard_email",0.3651,0.5175,0.254],"17711":["email","standard_email",0.4127,0.5651,0.3016],"17712":["email","standard_email",0.3651,0.5651,0.254],"4737173":["whatsapp","carousel",0.425,0.0,0.3333],"4737174":["whatsapp","carousel",0.425,0.0,0.3333],"4737175":["whatsapp","carousel",0.425,0.0,0.3333],"11866":["apn","standard_apn",0.2222,0.6667,0.5889],"11867":["apn","standard_apn",0.2222,0.5,0.3],"11868":["apn","standard_apn",0.2222,0.5,0.3],"11869":["apn","standard_apn",0.3889,0.2778,0.3444],"11873":["apn","standard_apn",0.2778,0.3889,0.5889],"11875":["apn","standard_apn",0.2778,0.3889,0.5889],"11876":["apn","standard_apn",0.5555,0.2778,0.1778],"11878":["apn","standard_apn",0.5555,0.2778,0.1778],"11879":["apn","standard_apn",0.5555,0.2778,0.1778],"17705":["email","standard_email",0.454,0.5746,0.5651],"17706":["email","standard_email",0.454,0.5746,0.5651],"4737178":["whatsapp","carousel",0.425,0.0,0.3333],"4737179":["whatsapp","carousel",0.425,0.0,0.3333],"4737180":["whatsapp","carousel",0.425,0.0,0.3333],"4737181":["whatsapp","carousel",0.425,0.0,0.3333],"4737182":["whatsapp","carousel",0.425,0.0,0.3333],"4737183":["whatsapp","carousel",0.425,0.0,0.3333],"4737184":["whatsapp","carousel",0.425,0.0,0.3333],"4737185":["whatsapp","carousel",0.425,0.0,0.3333],"11872":["apn","standard_apn",0.3889,0.2222,0.2333],"11882":["apn","standard_apn",0.3889,0.6111,0.6333],"11883":["apn","standard_apn",0.3889,0.6111,0.6333],"17714":["email","standard_email",0.6127,0.3206,0.5492],"17715":["email","standard_email",0.6127,0.3206,0.5492],"17717":["email","standard_email",0.6127,0.3206,0.5492],"17718":["email","standard_email",0.6603,0.273,0.5968],"17719":["email","standard_email",0.6127,0.3206,0.5492],"17720":["email","standard_email",0.6603,0.273,0.5968],"17721":["email","standard_email",0.6603,0.273,0.5968],"17723":["email","standard_email",0.6603,0.273,0.5968],"17724":["email","standard_email",0.6127,0.3206,0.5492],"17725":["email","standard_email",0.6603,0.273,0.5968],"17728":["email","standard_email",0.6127,0.3206,0.5492],"17729":["email","standard_email",0.6127,0.3206,0.5492],"17730":["email","standard_email",0.6127,0.3206,0.5492],"17731":["email","standard_email",0.6603,0.273,0.5968],"17734":["email","standard_email",0.6603,0.273,0.5968],"17735":["email","standard_email",0.6127,0.3206,0.5492],"4737186":["whatsapp","text",0.1111,0.1111,0.1111],"4737187":["whatsapp","text",0.1111,0.1111,0.1111],"11799":["apn","standard_apn",0.5,0.5,0.5556],"11881":["apn","standard_apn",0.6111,0.4444,0.2889],"11884":["apn","standard_apn",0.5,0.6111,0.5778],"11885":["apn","standard_apn",0.5,0.6111,0.5778],"11886":["apn","standard_apn",0.2222,0.6111,0.4222],"11887":["apn","standard_apn",0.2222,0.6111,0.4222],"11888":["apn","standard_apn",0.6111,0.4444,0.2889],"11889":["apn","standard_apn",0.2222,0.3889,0.3556],"11890":["apn","standard_apn",0.2222,0.3889,0.3556],"17722":["email","standard_email",0.4318,0.7746,0.1429],"17732":["email","standard_email",0.5492,0.4318,0.7079],"17733":["email","standard_email",0.1905,0.6603,0.4127],"17736":["email","standard_email",0.6127,0.3206,0.5492],"17737":["email","standard_email",0.5492,0.4318,0.7079],"17738":["email","standard_email",0.6127,0.3206,0.5492],"17739":["email","standard_email",0.5492,0.4318,0.7079],"17740":["email","standard_email",0.5492,0.4318,0.7079],"17742":["email","standard_email",0.5492,0.4318,0.7079],"17743":["email","standard_email",0.6127,0.3206,0.5492],"11892":["apn","standard_apn",0.6667,0.2778,0.3],"11893":["apn","standard_apn",0.3333,0.3333,0.3],"11894":["apn","standard_apn",0.3333,0.3333,0.3],"11895":["apn","standard_apn",0.6111,0.1667,0.0667],"11896":["apn","standard_apn",0.6111,0.1667,0.0667],"17741":["email","standard_email",0.454,0.4318,0.454],"2468":["sms","standard_sms",0.5,0.75,0.75],"11897":["apn","standard_apn",0.4444,0.3333,0.1222],"11898":["apn","standard_apn",0.4444,0.3333,0.1222],"11901":["apn","standard_apn",0.6667,0.1111,0.1889],"11902":["apn","standard_apn",0.8889,0.3333,0.3556],"17745":["email","standard_email",0.2762,0.273,0.5651],"17746":["email","standard_email",0.3873,0.1619,0.454],"17747":["email","standard_email",0.2762,0.273,0.5651],"17751":["email","standard_email",0.2762,0.273,0.5651],"11900":["apn","standard_apn",0.6667,0.1111,0.1889],"11903":["apn","standard_apn",0.8333,0.3889,0.4111],"11904":["apn","standard_apn",0.8333,0.3889,0.4111],"11906":["apn","standard_apn",0.6667,0.2222,0.2],"11973":["apn","standard_apn",0.3333,0.3333,0.1222],"11974":["apn","standard_apn",0.3333,0.3333,0.1222],"17749":["email","standard_email",0.2762,0.273,0.5651],"17752":["email","standard_email",0.2762,0.273,0.5651],"17780":["email","standard_email",0.1905,0.6127,0.4127],"4737188":["whatsapp","media",0.4584,0.5417,0.6],"4737189":["whatsapp","media",0.4584,0.5417,0.6],"4737190":["whatsapp","media",0.4584,0.5417,0.6],"4737192":["whatsapp","media",0.4584,0.5417,0.6],"2481":["sms","standard_sms",0.25,0.5,0.75],"2815":["bpn","standard_bpn",0.4667,0.3333,0.4667],"11975":["apn","standard_apn",0.2778,0.5556,0.3556],"11976":["apn","standard_apn",0.2778,0.5556,0.3556],"11977":["apn","standard_apn",0.3889,0.2778,0.2],"11978":["apn","standard_apn",0.3889,0.2778,0.2],"11979":["apn","standard_apn",0.5556,0.2778,0.2222],"11980":["apn","standard_apn",0.5556,0.2778,0.2222],"11981":["apn","standard_apn",0.7778,0.3333,0.2333],"11982":["apn","standard_apn",0.6111,0.1667,0.0667],"17750":["email","standard_email",0.2762,0.273,0.5651],"17753":["email","standard_email",0.2762,0.273,0.5651],"17781":["email","standard_email",0.3651,0.6794,0.1429],"17782":["email","standard_email",0.7238,0.3206,0.6127],"17783":["email","standard_email",0.7714,0.3206,0.6603],"17784":["email","standard_email",0.7714,0.273,0.6127],"17785":["email","standard_email",0.7238,0.3206,0.6127],"17790":["email","standard_email",0.4318,0.7746,0.1429],"4737158":["whatsapp","media",0.4583,0.4584,0.7333],"11985":["apn","standard_apn",0.2778,0.3889,0.1778],"11986":["apn","standard_apn",0.6667,0.1667,0.1222],"11987":["apn","standard_apn",0.6667,0.1667,0.1889],"11989":["apn","standard_apn",0.4445,0.1667,0.2444],"11998":["apn","standard_apn",0.3889,0.2222,0.2444],"11999":["apn","standard_apn",0.3889,0.1667,0.2444],"17786":["email","standard_email",0.7714,0.273,0.6127],"17787":["email","standard_email",0.7714,0.273,0.6127],"4737241":["whatsapp","media",0.4167,0.5,0.5],"4737242":["whatsapp","media",0.4167,0.5,0.5],"4737243":["whatsapp","media",0.4167,0.5,0.5],"4737244":["whatsapp","media",0.4167,0.5,0.5],"11990":["apn","standard_apn",0.3333,0.4444,0.3556],"11991":["apn","standard_apn",0.3333,0.4444,0.3556],"12000":["apn","standard_apn",0.4444,0.3333,0.2444],"12001":["apn","standard_apn",0.8333,0.2222,0.3],"12010":["apn","standard_apn",0.4445,0.1667,0.1778],"12011":["apn","standard_apn",0.4445,0.1667,0.1778],"12012":["apn","standard_apn",0.4445,0.1667,0.1778],"17788":["email","standard_email",0.6127,0.4318,0.5016],"17789":["email","standard_email",0.6127,0.4318,0.5016],"17791":["email","standard_email",0.6603,0.3682,0.5492],"17792":["email","standard_email",0.6603,0.3206,0.5492],"17793":["email","standard_email",0.6603,0.3682,0.5492],"17794":["email","standard_email",0.6127,0.3682,0.5016],"11992":["apn","standard_apn",0.4445,0.3333,0.1222],"11993":["apn","standard_apn",0.4445,0.3333,0.1222],"12002":["apn","standard_apn",0.7778,0.3333,0.3556],"12003":["apn","standard_apn",0.7778,0.3333,0.3556],"12008":["apn","standard_apn",0.7222,0.2778,0.1889],"12009":["apn","standard_apn",0.7222,0.2778,0.1889],"12004":["apn","standard_apn",0.5,0.3333,0.3556],"12005":["apn","standard_apn",0.5,0.3333,0.3556],"17795":["email","standard_email",0.6603,0.3682,0.5492],"17796":["email","standard_email",0.6603,0.3682,0.5492],"4737245":["whatsapp","carousel",0.375,0.6333,0.1],"4737246":["whatsapp","carousel",0.375,0.6333,0.1],"4737247":["whatsapp","carousel",0.375,0.6333,0.1],"4737248":["whatsapp","carousel",0.375,0.6333,0.1],"2483":["sms","standard_sms",0.5,0.5,0.25],"11996":["apn","standard_apn",0.4445,0.1667,0.1778],"11997":["apn","standard_apn",0.4445,0.1667,0.1778],"12006":["apn","standard_apn",0.8333,0.3333,0.4222],"12007":["apn","standard_apn",0.8889,0.3333,0.3556],"17797":["email","standard_email",0.6603,0.3682,0.5492],"17798":["email","standard_email",0.6603,0.3682,0.5492],"17799":["email","standard_email",0.6127,0.3206,0.5016],"17800":["email","standard_email",0.5968,0.4794,0.6603],"17801":["email","standard_email",0.6127,0.3206,0.5016],"17802":["email","standard_email",0.6127,0.3682,0.5016],"17808":["email","standard_email",0.5476,0.7143,0.5476],"2817":["bpn","standard_bpn",0.6167,0.4167,0.6167],"12013":["apn","standard_apn",0.6111,0.1111,0.1333],"12014":["apn","standard_apn",0.6111,0.1111,0.1333],"12015":["apn","standard_apn",0.8889,0.3333,0.2889],"12016":["apn","standard_apn",0.8889,0.3333,0.2889],"12018":["apn","standard_apn",0.5,0.1111,0.1222],"12019":["apn","standard_apn",0.4445,0.1111,0.1222],"12024":["apn","standard_apn",0.4445,0.1667,0.1778],"12025":["apn","standard_apn",0.4445,0.1667,0.1778],"12026":["apn","standard_apn",0.5,0.1667,0.1222],"12027":["apn","standard_apn",0.4445,0.1667,0.1778],"17810":["email","standard_email",0.4318,0.7746,0.1429],"17811":["email","standard_email",0.5476,0.7143,0.5476],"12021":["apn","standard_apn",0.6667,0.5,0.2889],"12028":["apn","standard_apn",0.5,0.1111,0.0667],"12034":["apn","standard_apn",0.4445,0.1111,0.1222],"12036":["apn","standard_apn",0.3333,0.2222,0.2333],"12037":["apn","standard_apn",0.3889,0.1667,0.1778],"17803":["email","standard_email",0.6127,0.3206,0.5016],"17804":["email","standard_email",0.6127,0.3682,0.5016],"17809":["email","standard_email",0.3016,0.5016,0.3016],"4737249":["whatsapp","carousel",0.125,0.4667,0.7333],"4737250":["whatsapp","carousel",0.125,0.4667,0.7333],"4737251":["whatsapp","carousel",0.125,0.4667,0.7333],"4737252":["whatsapp","carousel",0.125,0.4667,0.7333],"12023":["apn","standard_apn",0.5555,0.1667,0.0556],"12029":["apn","standard_apn",0.3889,0.4444,0.2333],"12035":["apn","standard_apn",0.3889,0.4444,0.2333],"12038":["apn","standard_apn",0.4445,0.2222,0.1222],"12039":["apn","standard_apn",0.5,0.1667,0.1222],"12042":["apn","standard_apn",0.4444,0.2778,0.2444],"17805":["email","standard_email",0.6127,0.3206,0.5016],"17806":["email","standard_email",0.6127,0.3682,0.5016],"17813":["email","standard_email",0.6127,0.3682,0.5016],"17814":["email","standard_email",0.5492,0.4318,0.6603],"17815":["email","standard_email",0.6127,0.3206,0.5016],"17816":["email","standard_email",0.6127,0.3682,0.5016],"4737253":["whatsapp","media",0.2917,0.375,0.5167],"12031":["apn","standard_apn",0.7222,0.3333,0.4778],"12040":["apn","standard_apn",0.4444,0.3333,0.2444],"12041":["apn","standard_apn",0.4444,0.3333,0.2444],"17822":["email","standard_email",0.473,0.5905,0.454],"12033":["apn","standard_apn",0.5556,0.1667,0.1222],"12043":["apn","standard_apn",0.3889,0.1667,0.1889],"12044":["apn","standard_apn",0.3889,0.1667,0.1889],"12045":["apn","standard_apn",0.5555,0.3333,0.1333],"12046":["apn","standard_apn",0.5,0.3333,0.0667],"17817":["email","standard_email",0.6127,0.3206,0.5016],"17818":["email","standard_email",0.6127,0.3206,0.5016],"17823":["email","standard_email",0.254,0.4063,0.254],"4737254":["whatsapp","media",0.2917,0.375,0.6],"4737255":["whatsapp","media",0.2917,0.375,0.6],"4737256":["whatsapp","media",0.2917,0.375,0.6],"4737257":["whatsapp","media",0.2917,0.375,0.6],"2485":["sms","standard_sms",1.0,0.25,0.5],"2819":["bpn","standard_bpn",0.6833,0.5,0.6833],"12047":["apn","standard_apn",0.5555,0.1667,0.1889],"12048":["apn","standard_apn",0.5555,0.1111,0.1889],"12049":["apn","standard_apn",0.7778,0.3333,0.3],"12050":["apn","standard_apn",0.5,0.1111,0.0667],"12051":["apn","standard_apn",0.3333,0.3889,0.4],"12052":["apn","standard_apn",0.3333,0.3889,0.4],"17819":["email","standard_email",0.6127,0.3682,0.5016],"17820":["email","standard_email",0.6127,0.3206,0.5016],"17825":["email","standard_email",0.5492,0.3206,0.5016],"17826":["email","standard_email",0.5016,0.273,0.5016],"17827":["email","standard_email",0.5016,0.3206,0.5016],"17828":["email","standard_email",0.5492,0.3206,0.5016],"4737258":["whatsapp","media",0.5,0.5,0.5],"12054":["apn","standard_apn",0.3889,0.2778,0.1111],"12059":["apn","standard_apn",0.3889,0.3889,0.5889],"12060":["apn","standard_apn",0.3889,0.3889,0.5889],"12061":["apn","standard_apn",0.3889,0.3889,0.5889],"12062":["apn","standard_apn",0.3889,0.3889,0.5889],"12063":["apn","standard_apn",0.3889,0.3889,0.5889],"12064":["apn","standard_apn",0.3889,0.3889,0.5889],"17834":["email","standard_email",0.473,0.5905,0.454],"4737261":["whatsapp","media",0.375,0.375,0.6333],"12066":["apn","standard_apn",0.6667,0.1667,0.1222],"12067":["apn","standard_apn",0.3889,0.6667,0.6111],"12069":["apn","standard_apn",0.4444,0.5555,0.5556],"12070":["apn","standard_apn",0.5556,0.5,0.5111],"12071":["apn","standard_apn",0.5556,0.5,0.5111],"12076":["apn","standard_apn",0.4444,0.4444,0.1222],"12077":["apn","standard_apn",0.4444,0.4444,0.1222],"17829":["email","standard_email",0.5492,0.3206,0.5016],"17830":["email","standard_email",0.5492,0.3206,0.5016],"17835":["email","standard_email",0.4318,0.7746,0.1429],"4737260":["whatsapp","media",0.375,0.375,0.6333],"4737262":["whatsapp","media",0.375,0.375,0.6333],"4737263":["whatsapp","media",0.375,0.375,0.6333],"4737264":["whatsapp","media",0.375,0.375,0.6333],"2486":["sms","standard_sms",0.75,0.5,0.75],"2820":["bpn","standard_bpn",0.85,0.3333,0.85],"12072":["apn","standard_apn",0.9444,0.2778,0.3],"12075":["apn","standard_apn",0.8889,0.2778,0.3],"12078":["apn","standard_apn",0.7778,0.2222,0.1889],"12079":["apn","standard_apn",0.7778,0.2222,0.1889],"12080":["apn","standard_apn",0.5556,0.3889,0.5],"12081":["apn","standard_apn",0.6111,0.4444,0.5667],"12082":["apn","standard_apn",0.6111,0.3333,0.4556],"12083":["apn","standard_apn",0.6111,0.3333,0.4556],"12084":["apn","standard_apn",0.5556,0.5,0.2889],"12085":["apn","standard_apn",0.6111,0.5,0.2333],"17831":["email","standard_email",0.5492,0.3206,0.5016],"17832":["email","standard_email",0.5492,0.3206,0.5016],"17833":["email","standard_email",0.254,0.6794,0.1429],"17836":["email","standard_email",0.1429,0.4063,0.254],"17837":["email","standard_email",0.454,0.273,0.454],"17838":["email","standard_email",0.5016,0.3206,0.5016],"17839":["email","standard_email",0.454,0.273,0.454],"17840":["email","standard_email",0.454,0.273,0.454],"2821":["bpn","standard_bpn",0.6833,0.6667,0.6833],"12073":["apn","standard_apn",0.7222,0.1667,0.1222],"12074":["apn","standard_apn",0.7222,0.1667,0.1222],"12086":["apn","standard_apn",0.3889,0.1111,0.1222],"12087":["apn","standard_apn",0.3889,0.1111,0.1222],"12088":["apn","standard_apn",0.5555,0.3333,0.4],"12089":["apn","standard_apn",0.5555,0.3333,0.4],"4737266":["whatsapp","media",0.4166,0.4167,0.8167],"4737267":["whatsapp","media",0.4166,0.4167,0.8167],"4737268":["whatsapp","media",0.4166,0.4167,0.8167],"4737269":["whatsapp","media",0.4166,0.4167,0.8167],"2822":["bpn","standard_bpn",0.6833,0.6667,0.6833],"12090":["apn","standard_apn",0.6667,0.1111,0.1333],"12091":["apn","standard_apn",0.6667,0.1111,0.1333],"12092":["apn","standard_apn",0.7222,0.2222,0.1889],"12093":["apn","standard_apn",0.7222,0.2222,0.1889],"12098":["apn","standard_apn",0.8333,0.3333,0.2889],"12099":["apn","standard_apn",0.5556,0.2222,0.1889],"17841":["email","standard_email",0.454,0.273,0.454],"17842":["email","standard_email",0.454,0.273,0.454],"4737265":["whatsapp","media",0.4166,0.4167,0.8167],"4737270":["whatsapp","media",0.4166,0.4167,0.8167],"12094":["apn","standard_apn",0.6667,0.3333,0.3667],"12095":["apn","standard_apn",0.6667,0.3333,0.3667],"12100":["apn","standard_apn",0.2778,0.5,0.1778],"12101":["apn","standard_apn",0.2778,0.5,0.1778],"12104":["apn","standard_apn",0.4444,0.1667,0.0667],"12105":["apn","standard_apn",0.4444,0.1667,0.0667],"17843":["email","standard_email",0.454,0.273,0.454],"17844":["email","standard_email",0.454,0.273,0.454],"17845":["email","standard_email",0.6603,0.3206,0.5492],"17846":["email","standard_email",0.5016,0.3206,0.5016],"17847":["email","standard_email",0.1905,0.4063,0.3016],"17848":["email","standard_email",0.5492,0.3682,0.5492],"17849":["email","standard_email",0.5492,0.3682,0.5492],"12096":["apn","standard_apn",0.6667,0.1111,0.1222],"12097":["apn","standard_apn",0.6667,0.1111,0.1222],"12102":["apn","standard_apn",0.3889,0.3889,0.1778],"12103":["apn","standard_apn",0.5556,0.5,0.4111],"12106":["apn","standard_apn",0.4445,0.1111,0.1333],"12107":["apn","standard_apn",0.4445,0.1111,0.1333],"4737271":["whatsapp","media",0.4584,0.2917,0.65],"4737273":["whatsapp","carousel",0.4,0.1,0.1666],"4737276":["whatsapp","carousel",0.4,0.1,0.1666],"12108":["apn","standard_apn",0.5,0.2222,0.1778],"12109":["apn","standard_apn",0.5556,0.1667,0.1222],"12110":["apn","standard_apn",0.4444,0.4444,0.2444],"12111":["apn","standard_apn",0.4444,0.4444,0.2444],"12113":["apn","standard_apn",0.4445,0.1667,0.1778],"12114":["apn","standard_apn",0.5,0.1667,0.2444],"17850":["email","standard_email",0.5016,0.3682,0.5016],"17851":["email","standard_email",0.5016,0.3682,0.5016],"4737272":["whatsapp","carousel",0.4,0.1,0.1666],"4737274":["whatsapp","carousel",0.4,0.1,0.1666],"4737275":["whatsapp","carousel",0.4,0.1,0.1666],"4737277":["whatsapp","carousel",0.525,0.2666,0.1666],"2488":["sms","standard_sms",0.25,0.75,0.75],"2826":["bpn","standard_bpn",0.6833,0.5833,0.6833],"12115":["apn","standard_apn",0.5556,0.1667,0.1667],"12116":["apn","standard_apn",0.5556,0.1667,0.1667],"12117":["apn","standard_apn",0.6667,0.1667,0.2444],"12118":["apn","standard_apn",0.6667,0.1667,0.2444],"12124":["apn","standard_apn",0.5,0.2778,0.1778],"12125":["apn","standard_apn",0.5,0.2778,0.1778],"17852":["email","standard_email",0.5016,0.3682,0.5016],"17853":["email","standard_email",0.5492,0.3682,0.5492],"17854":["email","standard_email",0.5016,0.3841,0.6127],"17855":["email","standard_email",0.5968,0.4794,0.6603],"17857":["email","standard_email",0.3016,0.4063,0.4127],"17858":["email","standard_email",0.3492,0.4063,0.4127],"17859":["email","standard_email",0.5016,0.4318,0.6127],"17860":["email","standard_email",0.3016,0.4063,0.4127],"17861":["email","standard_email",0.5016,0.4318,0.6127],"17862":["email","standard_email",0.4318,0.7746,0.1429],"4737279":["whatsapp","carousel",0.4,0.1,0.1666],"12122":["apn","standard_apn",0.6667,0.2222,0.1333],"12123":["apn","standard_apn",0.6667,0.2222,0.1333],"12126":["apn","standard_apn",0.7222,0.1111,0.1333],"12127":["apn","standard_apn",0.7222,0.1111,0.1333],"12128":["apn","standard_apn",0.4445,0.1667,0.1778],"12129":["apn","standard_apn",0.4445,0.1667,0.1778],"12137":["apn","standard_apn",0.4444,0.2778,0.2333],"12138":["apn","standard_apn",0.4444,0.2778,0.2333],"17870":["email","standard_email",0.3651,0.6794,0.1429],"4737280":["whatsapp","media",0.3333,0.4167,0.4667],"4737281":["whatsapp","media",0.3333,0.4167,0.4667],"4737282":["whatsapp","media",0.3333,0.25,0.3833],"2828":["bpn","standard_bpn",0.3667,0.4167,0.3667],"12130":["apn","standard_apn",0.6111,0.1111,0.0667],"12131":["apn","standard_apn",0.6111,0.1111,0.0667],"12139":["apn","standard_apn",0.6111,0.5,0.2333],"12140":["apn","standard_apn",0.6111,0.5,0.2333],"12141":["apn","standard_apn",0.3889,0.1667,0.3],"12142":["apn","standard_apn",0.5,0.1667,0.2444],"12145":["apn","standard_apn",0.3333,0.3333,0.3],"12146":["apn","standard_apn",0.6111,0.1667,0.1778],"12147":["apn","standard_apn",0.3889,0.2778,0.1667],"12148":["apn","standard_apn",0.3333,0.2778,0.2222],"12149":["apn","standard_apn",0.5,0.1111,0.1889],"12150":["apn","standard_apn",0.5,0.1111,0.1889],"17865":["email","standard_email",0.5016,0.4318,0.6127],"17867":["email","standard_email",0.5016,0.4794,0.6127],"17875":["email","standard_email",0.3016,0.4063,0.4127],"17876":["email","standard_email",0.3016,0.4063,0.4127],"17883":["email","standard_email",0.3016,0.4063,0.4127],"12154":["apn","standard_apn",0.3333,0.3333,0.1778],"12155":["apn","standard_apn",0.3333,0.2778,0.1778],"12158":["apn","standard_apn",0.6667,0.4444,0.3889],"12159":["apn","standard_apn",0.6667,0.4444,0.3889],"12160":["apn","standard_apn",0.2778,0.5556,0.2333],"12161":["apn","standard_apn",0.2778,0.5,0.2333],"12166":["apn","standard_apn",0.4445,0.4445,0.5778],"12167":["apn","standard_apn",0.4445,0.4445,0.5778],"12168":["apn","standard_apn",0.5556,0.5555,0.3444],"12169":["apn","standard_apn",0.5556,0.5555,0.3444],"17868":["email","standard_email",0.5016,0.4318,0.6127],"17869":["email","standard_email",0.5016,0.4794,0.6127],"17881":["email","standard_email",0.6603,0.4159,0.5492],"17882":["email","standard_email",0.6127,0.4159,0.5016],"17885":["email","standard_email",0.6603,0.4159,0.5492],"17887":["email","standard_email",0.6127,0.3682,0.5016],"4737286":["whatsapp","media",0.5834,0.4167,0.6333],"12162":["apn","standard_apn",0.3889,0.2222,0.3556],"12163":["apn","standard_apn",0.3333,0.2222,0.2889],"12170":["apn","standard_apn",0.8333,0.3333,0.3556],"12171":["apn","standard_apn",0.8333,0.3333,0.3556],"12178":["apn","standard_apn",0.6667,0.5,0.2889],"12179":["apn","standard_apn",0.6667,0.5,0.2889],"12180":["apn","standard_apn",0.5,0.6111,0.4667],"12181":["apn","standard_apn",0.5,0.6111,0.4667],"12186":["apn","standard_apn",0.7778,0.3889,0.4222],"12187":["apn","standard_apn",0.7778,0.3889,0.4222],"12190":["apn","standard_apn",0.7222,0.5555,0.4778],"12192":["apn","standard_apn",0.7222,0.5555,0.4778],"4737287":["whatsapp","media",0.25,0.25,0.4166],"4737288":["whatsapp","media",0.3333,0.3333,0.5],"12172":["apn","standard_apn",0.7222,0.3889,0.3444],"12173":["apn","standard_apn",0.7222,0.3889,0.3444],"12182":["apn","standard_apn",0.5,0.5,0.5778],"12183":["apn","standard_apn",0.5,0.5,0.5778],"12184":["apn","standard_apn",0.3333,0.3333,0.1222],"12185":["apn","standard_apn",0.3333,0.3333,0.1222],"12193":["apn","standard_apn",0.5555,0.2222,0.2444],"12194":["apn","standard_apn",0.6111,0.2222,0.1889],"17889":["email","standard_email",0.6127,0.3682,0.5016],"17890":["email","standard_email",0.6127,0.4159,0.5016],"4737283":["whatsapp","media",0.4584,0.375,0.5167],"2833":["bpn","standard_bpn",0.2333,0.1667,0.2333],"12164":["apn","standard_apn",0.3333,0.2222,0.2889],"12165":["apn","standard_apn",0.3333,0.2222,0.2889],"12174":["apn","standard_apn",0.3889,0.2778,0.1222],"12175":["apn","standard_apn",0.6111,0.3889,0.2889],"12188":["apn","standard_apn",0.2778,0.4444,0.3],"12189":["apn","standard_apn",0.2778,0.4444,0.3],"12195":["apn","standard_apn",0.5,0.3333,0.1333],"12196":["apn","standard_apn",0.5,0.3333,0.1333],"12197":["apn","standard_apn",0.3889,0.3333,0.0556],"12198":["apn","standard_apn",0.3333,0.3889,0.1111],"12203":["apn","standard_apn",0.8333,0.3889,0.3],"12204":["apn","standard_apn",0.8333,0.3889,0.3],"17891":["email","standard_email",0.6127,0.4159,0.5016],"17892":["email","standard_email",0.6127,0.3682,0.5016],"17893":["email","standard_email",0.7238,0.3206,0.6127],"17894":["email","standard_email",0.7714,0.3206,0.6603],"17895":["email","standard_email",0.7238,0.3206,0.6127],"12177":["apn","standard_apn",0.8889,0.3333,0.3],"12199":["apn","standard_apn",0.3333,0.2222,0.2222],"12200":["apn","standard_apn",0.3333,0.1667,0.2222],"12205":["apn","standard_apn",0.6111,0.2222,0.1889],"12206":["apn","standard_apn",0.6667,0.2222,0.1889],"12212":["apn","standard_apn",0.7778,0.3333,0.4111],"12213":["apn","standard_apn",0.7778,0.3333,0.4111],"12214":["apn","standard_apn",0.5556,0.3333,0.3889],"17898":["email","standard_email",0.3016,0.4063,0.4127],"17899":["email","standard_email",0.3492,0.4063,0.4127],"17900":["email","standard_email",0.4318,0.7746,0.1429],"17902":["email","standard_email",0.3492,0.4063,0.4127],"4737290":["whatsapp","media",0.3333,0.4167,0.6],"4737291":["whatsapp","media",0.3333,0.4167,0.6],"12208":["apn","standard_apn",0.4445,0.1667,0.1222],"12216":["apn","standard_apn",0.6667,0.5,0.3556],"12217":["apn","standard_apn",0.7222,0.5,0.3556],"12218":["apn","standard_apn",0.3889,0.1667,0.0667],"12219":["apn","standard_apn",0.3889,0.1667,0.0667],"12220":["apn","standard_apn",0.3889,0.2222,0.2444],"12221":["apn","standard_apn",0.3889,0.2222,0.2444],"12223":["apn","standard_apn",0.3889,0.2222,0.2444],"12224":["apn","standard_apn",0.3889,0.2222,0.2444],"12229":["apn","standard_apn",0.6111,0.3889,0.4778],"12230":["apn","standard_apn",0.6111,0.3889,0.4778],"12231":["apn","standard_apn",0.5,0.5,0.4444],"12232":["apn","standard_apn",0.5,0.5,0.4444],"17877":["email","standard_email",0.3492,0.7905,0.3492],"17896":["email","standard_email",0.7238,0.3206,0.6127],"17897":["email","standard_email",0.7238,0.3206,0.6127],"17905":["email","standard_email",0.7079,0.3682,0.5968],"17906":["email","standard_email",0.6603,0.3682,0.5492],"17907":["email","standard_email",0.5492,0.3682,0.7048],"17908":["email","standard_email",0.6127,0.2095,0.546],"17912":["email","standard_email",0.5492,0.3682,0.7048],"17914":["email","standard_email",0.6603,0.3682,0.5492],"17916":["email","standard_email",0.6127,0.2095,0.546],"17919":["email","standard_email",0.6603,0.3682,0.5492],"17920":["email","standard_email",0.6127,0.2095,0.546],"4737289":["whatsapp","media",0.4167,0.3333,0.5],"12210":["apn","standard_apn",0.5,0.2222,0.2556],"12225":["apn","standard_apn",0.3889,0.2222,0.2444],"12226":["apn","standard_apn",0.3889,0.2222,0.2444],"12227":["apn","standard_apn",0.3889,0.2222,0.2444],"12228":["apn","standard_apn",0.3889,0.2222,0.2444],"12233":["apn","standard_apn",0.5,0.5555,0.4111],"12234":["apn","standard_apn",0.5,0.5555,0.4111],"12235":["apn","standard_apn",0.5,0.2222,0.2444],"12236":["apn","standard_apn",0.5,0.2222,0.2444],"12303":["apn","standard_apn",0.4444,0.5,0.5556],"12304":["apn","standard_apn",0.4444,0.5,0.5556],"12305":["apn","standard_apn",0.6111,0.2222,0.1889],"12306":["apn","standard_apn",0.6111,0.2222,0.1889],"12307":["apn","standard_apn",0.4444,0.1667,0.5333],"12308":["apn","standard_apn",0.4444,0.1667,0.5333],"12309":["apn","standard_apn",0.6667,0.3889,0.5111],"12310":["apn","standard_apn",0.6667,0.3889,0.5111],"17886":["email","standard_email",0.2063,0.8381,0.2063],"17947":["email","standard_email",0.6603,0.3682,0.5492],"17948":["email","standard_email",0.6603,0.3682,0.5492],"17949":["email","standard_email",0.6603,0.3682,0.5492],"17950":["email","standard_email",0.6603,0.3682,0.5492],"17951":["email","standard_email",0.6603,0.3682,0.5492],"17952":["email","standard_email",0.6603,0.3682,0.5492],"4737292":["whatsapp","media",0.4445,0.4444,0.4667],"4737293":["whatsapp","media",0.3333,0.4444,0.2444],"4737294":["whatsapp","media",0.3333,0.4444,0.2444],"4737295":["whatsapp","media",0.4445,0.4444,0.4667],"4737296":["whatsapp","media",0.3333,0.4444,0.2444],"4737297":["whatsapp","media",0.3333,0.4444,0.2444],"4737298":["whatsapp","media",0.3333,0.4444,0.2444],"12222":["apn","standard_apn",0.3333,0.2778,0.1778],"12311":["apn","standard_apn",0.3889,0.2222,0.2444],"12312":["apn","standard_apn",0.3889,0.2222,0.2444],"12313":["apn","standard_apn",0.3889,0.2222,0.2444],"12314":["apn","standard_apn",0.3889,0.2222,0.2444],"12315":["apn","standard_apn",0.3889,0.2222,0.2444],"12316":["apn","standard_apn",0.3889,0.2222,0.2444],"12317":["apn","standard_apn",0.3889,0.2222,0.2444],"12318":["apn","standard_apn",0.3889,0.2222,0.2444],"12319":["apn","standard_apn",0.6667,0.2778,0.4111],"12321":["apn","standard_apn",0.6667,0.2778,0.4111],"12322":["apn","standard_apn",0.4445,0.3889,0.1778],"12323":["apn","standard_apn",0.4444,0.5,0.3556],"12324":["apn","standard_apn",0.4445,0.3889,0.1778],"12325":["apn","standard_apn",0.4444,0.5,0.3556],"12326":["apn","standard_apn",0.6111,0.2778,0.1889],"12327":["apn","standard_apn",0.6111,0.2778,0.1889],"12328":["apn","standard_apn",0.3333,0.2778,0.1778],"12334":["apn","standard_apn",0.4444,0.1667,0.3444],"12335":["apn","standard_apn",0.4444,0.1667,0.3444],"17915":["email","standard_email",0.1905,0.4063,0.3016],"4737347":["whatsapp","carousel",0.225,0.1,0.4667],"4737348":["whatsapp","carousel",0.225,0.1,0.4667],"4737349":["whatsapp","carousel",0.225,0.1,0.4667],"4737350":["whatsapp","carousel",0.225,0.1,0.4667],"2838":["bpn","standard_bpn",0.4667,0.4167,0.4667],"12329":["apn","standard_apn",0.6667,0.1667,0.1222],"12330":["apn","standard_apn",0.6667,0.1667,0.1222],"12331":["apn","standard_apn",0.6667,0.1667,0.1222],"12332":["apn","standard_apn",0.7222,0.1667,0.1889],"12338":["apn","standard_apn",0.5,0.6667,0.4],"12339":["apn","standard_apn",0.5,0.6667,0.4],"12349":["apn","standard_apn",0.5,0.3889,0.6889],"12351":["apn","standard_apn",0.5,0.3889,0.6889],"12354":["apn","standard_apn",0.3889,0.2222,0.2444],"12355":["apn","standard_apn",0.3889,0.2222,0.2444],"12356":["apn","standard_apn",0.3889,0.2222,0.2444],"12357":["apn","standard_apn",0.3889,0.2222,0.2444],"12358":["apn","standard_apn",0.3889,0.1667,0.2778],"12359":["apn","standard_apn",0.4445,0.3889,0.1111],"12400":["apn","standard_apn",0.4445,0.5,0.7444],"12364":["apn","standard_apn",0.6111,0.4444,0.5778],"12365":["apn","standard_apn",0.6111,0.4444,0.5778],"12366":["apn","standard_apn",0.4445,0.3333,0.0667],"12367":["apn","standard_apn",0.4445,0.3333,0.0667],"2503":["sms","standard_sms",0.25,0.25,0.25],"2504":["sms","standard_sms",0.75,0.5,0.75],"2839":["bpn","standard_bpn",0.2167,0.4167,0.2167],"12336":["apn","standard_apn",0.6111,0.1667,0.1889],"12337":["apn","standard_apn",0.8333,0.3889,0.3556],"12347":["apn","standard_apn",0.7222,0.3333,0.4778],"12348":["apn","standard_apn",0.7222,0.3333,0.4778],"12352":["apn","standard_apn",0.3889,0.6667,0.6889],"12353":["apn","standard_apn",0.3889,0.6667,0.6889],"12360":["apn","standard_apn",0.7222,0.5,0.3],"12361":["apn","standard_apn",0.7222,0.5,0.3],"12372":["apn","standard_apn",0.2778,0.3889,0.2333],"12373":["apn","standard_apn",0.3333,0.3333,0.1778],"12374":["apn","standard_apn",0.3333,0.3333,0.1111],"12375":["apn","standard_apn",0.3333,0.3333,0.1111],"12376":["apn","standard_apn",0.5556,0.3333,0.3889],"12377":["apn","standard_apn",0.5556,0.3333,0.3889],"12378":["apn","standard_apn",0.3889,0.2222,0.2444],"12379":["apn","standard_apn",0.3889,0.2222,0.2444],"17955":["email","standard_email",0.3492,0.4063,0.3016],"17956":["email","standard_email",0.6603,0.4794,0.5492],"17957":["email","standard_email",0.6603,0.3206,0.6603],"17958":["email","standard_email",0.7238,0.273,0.6127],"17959":["email","standard_email",0.6603,0.3206,0.6603],"17960":["email","standard_email",0.6603,0.3206,0.6603],"12340":["apn","standard_apn",0.5555,0.2222,0.1222],"12341":["apn","standard_apn",0.5555,0.2222,0.1222],"12362":["apn","standard_apn",0.3333,0.1111,0.3444],"12363":["apn","standard_apn",0.3333,0.1111,0.3444],"12380":["apn","standard_apn",0.6667,0.5556,0.2889],"12381":["apn","standard_apn",0.6667,0.5556,0.2889],"12382":["apn","standard_apn",0.3889,0.5556,0.5222],"12383":["apn","standard_apn",0.4444,0.5,0.4667],"12384":["apn","standard_apn",0.3333,0.1111,0.2889],"12385":["apn","standard_apn",0.3889,0.1111,0.2333],"12388":["apn","standard_apn",0.6111,0.5555,0.3444],"12389":["apn","standard_apn",0.7222,0.5,0.2889],"12394":["apn","standard_apn",0.4444,0.3889,0.3444],"12395":["apn","standard_apn",0.5,0.3333,0.4111],"4737351":["whatsapp","media",0.75,0.5834,0.5083],"4737352":["whatsapp","media",0.5417,0.5417,0.5083],"4737353":["whatsapp","media",0.625,0.625,0.5917],"12390":["apn","standard_apn",0.3333,0.3333,0.3556],"12391":["apn","standard_apn",0.3333,0.3333,0.3],"12392":["apn","standard_apn",0.4444,0.3889,0.2889],"12393":["apn","standard_apn",0.5,0.2778,0.2333],"12396":["apn","standard_apn",0.3333,0.5,0.1778],"12397":["apn","standard_apn",0.3333,0.3889,0.1778],"12401":["apn","standard_apn",0.4445,0.5,0.7444],"12402":["apn","standard_apn",0.2222,0.4444,0.2889],"12403":["apn","standard_apn",0.2222,0.4444,0.3444],"12422":["apn","standard_apn",0.3889,0.2222,0.1222],"12423":["apn","standard_apn",0.4445,0.2778,0.1889],"12424":["apn","standard_apn",0.3333,0.2778,0.0556],"12425":["apn","standard_apn",0.3889,0.3333,0.0556],"17961":["email","standard_email",0.6603,0.3206,0.6603],"17962":["email","standard_email",0.6603,0.3206,0.6603],"4737354":["whatsapp","media",0.4583,0.5417,0.425],"12398":["apn","standard_apn",0.5,0.5,0.6222],"12399":["apn","standard_apn",0.5,0.4444,0.6222],"12426":["apn","standard_apn",0.6111,0.4444,0.2889],"12427":["apn","standard_apn",0.6667,0.4444,0.2889],"12428":["apn","standard_apn",0.3889,0.5556,0.4111],"12429":["apn","standard_apn",0.4444,0.5,0.3556],"12432":["apn","standard_apn",0.4445,0.7222,0.5778],"12433":["apn","standard_apn",0.4445,0.7222,0.5222],"12434":["apn","standard_apn",0.2778,0.4444,0.4],"12435":["apn","standard_apn",0.2778,0.4444,0.4556],"12436":["apn","standard_apn",0.7778,0.3333,0.2889],"12437":["apn","standard_apn",0.8333,0.3333,0.2889],"12438":["apn","standard_apn",0.3333,0.2222,0.1222],"12439":["apn","standard_apn",0.3889,0.2222,0.1222],"12446":["apn","standard_apn",0.4444,0.5,0.3556],"12447":["apn","standard_apn",0.4444,0.5,0.3556],"17909":["email","standard_email",0.4127,0.6318,0.1905],"17963":["email","standard_email",0.6603,0.3206,0.6603],"17964":["email","standard_email",0.6603,0.3206,0.6603],"17983":["email","standard_email",0.6603,0.3841,0.7714],"17984":["email","standard_email",0.7238,0.273,0.6127],"17985":["email","standard_email",0.5016,0.2699,0.6571],"17986":["email","standard_email",0.727,0.254,0.6127],"17987":["email","standard_email",0.5905,0.3873,0.4794],"17988":["email","standard_email",0.5016,0.3365,0.6571],"17989":["email","standard_email",0.7238,0.4318,0.6127],"17991":["email","standard_email",0.4571,0.4032,0.6127],"4737508":["whatsapp","media",0.2917,0.2917,0.2167]};
+
+// Optional benchmark / metric columns (shown under "Optional: benchmark scores")
+const OPTIONAL_SCORE_ROLES = [
+  { key:'open_score',  label:'Open Score',  hint:'vs embedded DB' },
+  { key:'click_score', label:'Click Score', hint:'vs embedded DB' },
+  { key:'conv_score',  label:'Conv Score',  hint:'vs embedded DB' },
+  { key:'open_rate',   label:'Open Rate %', hint:'metric' },
+  { key:'ctr',         label:'CTR %',       hint:'metric' },
+  { key:'cvr',         label:'CVR %',       hint:'metric' },
+  { key:'revenue',     label:'Revenue',     hint:'metric' },
+];
+
+// Smart auto-guesser
+const GUESSES = {
+  campaign_name: [/campaign\s*name/i,/^campaign$/i,/^(campaign|name)$/i,/^(day|period)$/i,/title/i],
+  mid:           [/^mid$/i,/message.?id/i,/^mid\b/i],
+  open_score:    [/open.?score/i,/open.?pts/i,/os$/i],
+  click_score:   [/click.?score/i,/ctr.?score/i,/click.?pts/i,/cs$/i],
+  conv_score:    [/conv.?score/i,/cvr.?score/i,/conversion.?score/i,/conv.?pts/i],
+  open_rate:     [/open.?rate/i,/open%/i,/\bor\b/i],
+  ctr:           [/\bctr\s*%/i,/\bctr\b/i,/click.?rate/i,/click.?thru/i],
+  cvr:           [/\bcvr\b/i,/conv.?rate/i,/conversion.?rate/i],
+  revenue:       [/revenue/i,/rev\b/i,/gmv/i],
+};
+
+let parsedHeaders = [];
+let parsedRows = [];
+let manualMIDs = {}; // row label -> MID override for benchmarks
+
+/** Top-level keys in DB JSON (same nested shape under each). */
+const DB_ROOTS = ['feature_values','open_feature_pts','click_feature_pts','conversion_feature_pts'];
+const JSON_WRAPPER_KEYS = ['data','payload','result','content_details','content','body','record','message','response','items','item'];
+
+function getIncludedRoots() {
+  const set = new Set();
+  document.querySelectorAll('input.root-inc:checked').forEach(cb => {
+    const r = cb.getAttribute('data-root');
+    if (r) set.add(r);
+  });
+  return set;
+}
+
+function hasDbRootShape(o) {
+  return o != null && typeof o === 'object' && !Array.isArray(o) &&
+    DB_ROOTS.some(k => o[k] != null && typeof o[k] === 'object');
+}
+
+function tryParseJsonLenient(text) {
+  let t = String(text || '').trim().replace(/^\uFEFF/, '');
+  if (!t) return { ok: true, value: null };
+  try {
+    return { ok: true, value: JSON.parse(t) };
+  } catch (e1) {
+    try {
+      t = t.replace(/,\s*([}\]])/g, '$1');
+      return { ok: true, value: JSON.parse(t) };
+    } catch (e2) {
+      return { ok: false, error: e1.message || 'Invalid JSON' };
+    }
+  }
+}
+
+/** Unwrap API envelopes ({ data: { feature_values } }) and single-element arrays. */
+function unwrapDbPayload(obj, depth) {
+  if (depth === undefined) depth = 0;
+  if (depth > 12) return obj;
+  if (obj == null) return obj;
+  if (Array.isArray(obj)) {
+    if (obj.length === 1 && obj[0] != null && typeof obj[0] === 'object' && !Array.isArray(obj[0])) {
+      return unwrapDbPayload(obj[0], depth + 1);
+    }
+    return obj;
+  }
+  if (typeof obj !== 'object') return obj;
+  if (hasDbRootShape(obj)) return obj;
+
+  const keys = Object.keys(obj);
+  if (keys.length === 1 && JSON_WRAPPER_KEYS.includes(keys[0])) {
+    return unwrapDbPayload(obj[keys[0]], depth + 1);
+  }
+  for (const w of JSON_WRAPPER_KEYS) {
+    if (obj[w] == null || typeof obj[w] !== 'object' || Array.isArray(obj[w])) continue;
+    const inner = unwrapDbPayload(obj[w], depth + 1);
+    if (hasDbRootShape(inner)) return inner;
+    if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+      const ik = Object.keys(inner);
+      if (ik.length > 0 && ik.length < 5000) {
+        const withRoot = ik.filter(k => inner[k] && typeof inner[k] === 'object' && hasDbRootShape(inner[k]));
+        if (withRoot.length >= Math.min(ik.length, 3) || (ik.length === 1 && withRoot.length === 1)) return inner;
+      }
+    }
+  }
+  return obj;
+}
+
+/** True when top-level keys are section buckets (title / overall / …) without a feature_values wrapper. */
+function isSectionOnlyFeatureBundle(o) {
+  if (o == null || typeof o !== 'object' || Array.isArray(o)) return false;
+  if (DB_ROOTS.some(k => o[k] != null)) return false;
+  const sectionLike = ['title', 'overall', 'description'];
+  const objectSections = sectionLike.filter(k =>
+    o[k] != null && typeof o[k] === 'object' && !Array.isArray(o[k]));
+  if (objectSections.length < 2) return false;
+  const keys = Object.keys(o);
+  if (keys.length > 80) return false;
+  // All top-level values should be plain objects (section payloads), not arrays or primitives.
+  return keys.every(k => o[k] != null && typeof o[k] === 'object' && !Array.isArray(o[k]));
+}
+
+/** Single textarea: keyed map, shared object with roots, or wrapped API JSON. */
+function parseDbSourceJsonBlob(text) {
+  const empty = { ok: true, mode: 'empty', data: {}, sharedPayload: null, error: null, meta: null };
+  const t = (text || '').trim();
+  if (!t) return empty;
+  const parsed = tryParseJsonLenient(t);
+  if (!parsed.ok) return { ok: false, mode: null, data: {}, sharedPayload: null, error: parsed.error, meta: null };
+  let data = parsed.value;
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+    return { ok: false, mode: null, data: {}, sharedPayload: null, error: 'Root must be a JSON object (not an array).', meta: null };
+  }
+  data = unwrapDbPayload(data);
+  if (hasDbRootShape(data)) {
+    return { ok: true, mode: 'shared', data: {}, sharedPayload: data, error: null, meta: null };
+  }
+  if (isSectionOnlyFeatureBundle(data)) {
+    return {
+      ok: true,
+      mode: 'shared',
+      data: {},
+      sharedPayload: { feature_values: data },
+      error: null,
+      meta: 'section_only',
+    };
+  }
+  return { ok: true, mode: 'keyed', data, sharedPayload: null, error: null, meta: null };
+}
+
+function updateDbSourceStatus() {
+  const el = document.getElementById('dbSourceJsonStatus');
+  if (!el) return;
+  const raw = document.getElementById('dbSourceJsonInput')?.value || '';
+  const r = parseDbSourceJsonBlob(raw);
+  if (!raw.trim()) {
+    el.innerHTML = '<span style="color:var(--muted);">Paste DB JSON — MID/campaign-keyed map, or one object with feature_values / … at top level.</span>';
+    return;
+  }
+  if (!r.ok) {
+    el.innerHTML = `<span style="color:var(--red);">✕ ${escapeHtml(r.error)}</span>`;
+    return;
+  }
+  if (r.mode === 'empty') {
+    el.innerHTML = '<span style="color:var(--muted);">Empty</span>';
+    return;
+  }
+  if (r.mode === 'shared') {
+    const roots = DB_ROOTS.filter(k => r.sharedPayload[k] != null);
+    const sect = r.meta === 'section_only'
+      ? ' · Interpreted as <code>feature_values</code> (sections: title / overall / description at top level)'
+      : '';
+    el.innerHTML = `<span style="color:var(--green);">✓ Valid JSON · ${roots.length} root(s) at top level (shared for all rows)${sect}</span>`;
+    return;
+  }
+  const nk = Object.keys(r.data).length;
+  el.innerHTML = `<span style="color:var(--green);">✓ Valid JSON · ${nk} keyed entr${nk === 1 ? 'y' : 'ies'} (match row label to these keys)</span>`;
+}
+
+/** Resolve per-row DB payload from unified blob. */
+function getJsonPayloadForRow(rowLabel, blob) {
+  const label = (rowLabel || '').trim();
+  if (!blob || !blob.ok || blob.mode === 'empty') return null;
+  if (blob.mode === 'shared' && blob.sharedPayload) return blob.sharedPayload;
+  if (blob.mode === 'keyed' && blob.data && label) {
+    if (blob.data[label] != null && typeof blob.data[label] === 'object') return blob.data[label];
+    const num = String(label).replace(/,/g, '');
+    if (blob.data[num] != null && typeof blob.data[num] === 'object') return blob.data[num];
+  }
+  return null;
+}
+
+const FIELDS_TITLE_LIKE = [
+  { key:'emoji_count', mode:'number' },
+  { key:'readability', mode:'number' },
+  { key:'intent_clarity', mode:'number' },
+  { key:'dominant_emotion', mode:'string' },
+  { key:'count_social_links', mode:'number' },
+  { key:'count_personalisation', mode:'number' },
+  { key:'strong_call_to_action', mode:'bool' },
+  { key:'value_proposition_present', mode:'bool' },
+];
+const FIELDS_OVERALL = [
+  { key:'num_cards', mode:'number' },
+  { key:'num_images', mode:'number' },
+  { key:'num_buttons', mode:'number' },
+  { key:'message_word_count', mode:'number' },
+  { key:'subject_word_count', mode:'number' },
+  { key:'template_popularity', mode:'number' },
+];
+
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function getByPath(obj, path) {
+  if (obj == null || !path) return undefined;
+  const parts = String(path).split('.').map(p => p.trim()).filter(Boolean);
+  let cur = obj;
+  for (const p of parts) {
+    if (cur == null || typeof cur !== 'object') return undefined;
+    cur = cur[p];
+  }
+  return cur;
+}
+
+function parseBoolLoose(v) {
+  if (v === true || v === false) return v;
+  const x = String(v ?? '').trim().toLowerCase();
+  if (['true','1','yes','y'].includes(x)) return true;
+  if (['false','0','no','n'].includes(x)) return false;
+  return null;
+}
+
+function compareCustomField(agentRaw, dbVal, mode) {
+  if (dbVal === undefined) return { cls: 'fail', label: 'NO PATH', detail: 'missing in DB JSON' };
+  if (mode === 'bool') {
+    const a = parseBoolLoose(agentRaw);
+    const b = dbVal === true || dbVal === false ? dbVal : parseBoolLoose(dbVal);
+    if (a === null || b === null) return { cls: 'fail', label: '✕', detail: 'boolean parse error' };
+    const ok = a === b;
+    return { cls: ok ? 'pass' : 'fail', label: ok ? '✓' : '✕', detail: ok ? 'match' : `${a} vs ${b}` };
+  }
+  if (mode === 'number') {
+    const a = pf(agentRaw);
+    const d = typeof dbVal === 'number' ? dbVal : pf(dbVal);
+    if (isNaN(a) || isNaN(d)) return { cls: 'fail', label: 'BAD NUM', detail: 'not a number' };
+    const c = classify(a, d);
+    return { cls: c, label: c === 'pass' ? '✓' : c === 'near' ? '~' : '✕', detail: `${a} vs ${d}` };
+  }
+  if (mode === 'string') {
+    const a = String(agentRaw ?? '').trim().toLowerCase();
+    const b = String(dbVal ?? '').trim().toLowerCase();
+    const ok = a === b;
+    return { cls: ok ? 'pass' : 'fail', label: ok ? '✓' : '✕', detail: ok ? 'match' : `"${a}" ≠ "${b}"` };
+  }
+  const ok = String(agentRaw ?? '') === String(dbVal ?? '');
+  return { cls: ok ? 'pass' : 'fail', label: ok ? '✓' : '✕', detail: ok ? 'exact' : 'mismatch' };
+}
+
+function fmtDbVal(v) {
+  if (v === null || v === undefined) return '—';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+function parseMappingPath(path) {
+  const parts = String(path).split('.').map(p => p.trim()).filter(Boolean);
+  if (parts.length < 3) return null;
+  return { root: parts[0], fieldKey: parts[parts.length - 1] };
+}
+
+/** Compare agent column to every applicable section under the same root + field (schema-aware; no phantom paths). */
+function evaluateMappingAcrossSections(agentRaw, jsonRec, cm) {
+  const parsed = parseMappingPath(cm.path);
+  if (!parsed) {
+    const cmp = compareCustomField(agentRaw, jsonRec ? getByPath(jsonRec, cm.path) : undefined, cm.mode);
+    const ok = cm.mode === 'number' ? (cmp.cls === 'pass' || cmp.cls === 'near') : cmp.cls === 'pass';
+    return {
+      rows: [{ path: cm.path, value: jsonRec ? getByPath(jsonRec, cm.path) : undefined, cmp, defined: jsonRec && getByPath(jsonRec, cm.path) !== undefined }],
+      ok,
+      conflict: false,
+      anyDefined: jsonRec && getByPath(jsonRec, cm.path) !== undefined,
+      applicableSections: [],
+    };
+  }
+  const applicableSections = getApplicableSectionsForField(parsed.fieldKey);
+  const rows = [];
+  for (const sec of applicableSections) {
+    const path = `${parsed.root}.${sec}.${parsed.fieldKey}`;
+    const value = getByPath(jsonRec, path);
+    const cmp = compareCustomField(agentRaw, value, cm.mode);
+    rows.push({ path, value, cmp, defined: value !== undefined });
+  }
+  const definedRows = rows.filter(r => r.value !== undefined);
+  let conflict = false;
+  if (definedRows.length > 1) {
+    if (cm.mode === 'string') {
+      const norms = definedRows.map(r => String(r.value ?? '').trim().toLowerCase());
+      conflict = new Set(norms).size > 1;
+    } else if (cm.mode === 'bool') {
+      const bvals = definedRows.map(r => r.value === true || r.value === false ? r.value : parseBoolLoose(r.value));
+      const okb = bvals.filter(v => v === true || v === false);
+      conflict = okb.length > 1 && new Set(okb).size > 1;
+    } else if (cm.mode === 'number') {
+      const nums = definedRows.map(r => (typeof r.value === 'number' ? r.value : pf(r.value)));
+      const valid = nums.filter(n => !isNaN(n));
+      conflict = valid.length > 1 && valid.some((n, i) => i > 0 && Math.abs(n - valid[0]) > 1e-9);
+    }
+  }
+  let ok = false;
+  if (!definedRows.length) {
+    ok = false;
+  } else if (definedRows.length === 1) {
+    const r0 = definedRows[0];
+    ok = cm.mode === 'number' ? (r0.cmp.cls === 'pass' || r0.cmp.cls === 'near') : r0.cmp.cls === 'pass';
+  } else {
+    // Multiple sections store this field: one agent value must align with every stored DB value (otherwise ambiguous / invalid).
+    ok = definedRows.every(r =>
+      cm.mode === 'number' ? (r.cmp.cls === 'pass' || r.cmp.cls === 'near') : r.cmp.cls === 'pass');
+  }
+  return {
+    rows,
+    ok,
+    conflict,
+    anyDefined: definedRows.length > 0,
+    fieldKey: parsed.fieldKey,
+    root: parsed.root,
+    applicableSections,
+  };
+}
+
+function renderFieldComparisonBlock(cm, agentVal, jsonRec, evPre) {
+  const ev = evPre || evaluateMappingAcrossSections(agentVal, jsonRec, cm);
+  const agentDisp = escapeHtml(agentVal ?? '—');
+  const mapRef = escapeHtml(cm.path);
+  if (!jsonRec) {
+    return `<div class="cmp-block">
+      <div class="cmp-block-hdr">
+        <div class="cmp-agent-box">
+          <div class="cmp-agent-lbl">Agent · ${escapeHtml(cm.col)}</div>
+          <div class="cmp-agent-val">${agentDisp}</div>
+          <div class="cmp-map-hint">Mapped from <code>${mapRef}</code></div>
+        </div>
+        <span class="cmp-verdict-pill cvp-unk">NO DB PAYLOAD</span>
+      </div></div>`;
+  }
+  let pill = 'cvp-fail';
+  let vtext = '✕ MISMATCH';
+  if (!ev.anyDefined) {
+    vtext = '✕ MISSING IN DB';
+  } else if (ev.ok) {
+    pill = 'cvp-pass';
+    vtext = '✓ ALIGNED';
+  }
+  const secs = (ev.applicableSections && ev.applicableSections.length)
+    ? ev.applicableSections
+    : getSectionKeysFromInput();
+  let conflictHTML = '';
+  if (ev.conflict) {
+    conflictHTML = ev.ok
+      ? `<div class="cmp-conflict">⚠ DB has <strong>different</strong> values for <code>${escapeHtml(ev.fieldKey || '')}</code> under multiple sections (see below).</div>`
+      : `<div class="cmp-conflict">⚠ DB stores <strong>different</strong> values for <code>${escapeHtml(ev.fieldKey || '')}</code> in multiple sections. A single agent value cannot be validated as both — require explicit title vs description (or matching values in DB).</div>`;
+  }
+  const dbLabel = ev.fieldKey ? `DB · ${escapeHtml(ev.fieldKey)} (schema-relevant sections)` : 'DB paths';
+  const locHTML = ev.rows.map(r => {
+    const isDef = r.defined;
+    const valDisp = isDef ? escapeHtml(fmtDbVal(r.value)) : '—';
+    const miss = !isDef;
+    let badge = 'cb-absent';
+    let bt = 'ABSENT';
+    if (isDef) {
+      const pass = cm.mode === 'number' ? (r.cmp.cls === 'pass' || r.cmp.cls === 'near') : r.cmp.cls === 'pass';
+      const near = r.cmp.cls === 'near';
+      if (pass) {
+        badge = near ? 'cb-near' : 'cb-match';
+        bt = near ? '~ NEAR' : 'MATCH';
+      } else {
+        badge = 'cb-diff';
+        bt = 'DIFF';
+      }
+    }
+    return `<div class="cmp-loc">
+      <div>
+        <div class="cmp-path">${escapeHtml(r.path)}</div>
+        <div class="cmp-val ${miss ? 'miss' : ''}">${valDisp}</div>
+      </div>
+      <span class="cmp-badge ${badge}">${bt}</span>
+    </div>`;
+  }).join('');
+  return `<div class="cmp-block">
+    <div class="cmp-block-hdr">
+      <div class="cmp-agent-box">
+        <div class="cmp-agent-lbl">Agent · ${escapeHtml(cm.col)}</div>
+        <div class="cmp-agent-val">${agentDisp}</div>
+        <div class="cmp-map-hint">You mapped <code>${mapRef}</code> · sections used for this field: <strong>${escapeHtml(secs.join(', '))}</strong></div>
+      </div>
+      <span class="cmp-verdict-pill ${pill}">${vtext}</span>
+    </div>
+    <div class="cmp-db-grid">
+      ${conflictHTML}
+      <div class="cmp-db-lbl">${dbLabel}</div>
+      ${locHTML}
+    </div>
+  </div>`;
+}
+
+function getSectionKeysFromInput() {
+  const raw = document.getElementById('sectionKeysInput')?.value || 'title,overall,description';
+  const keys = raw.split(',').map(s => s.trim()).filter(Boolean);
+  return keys.length ? keys : ['title','overall','description'];
+}
+
+function fieldsForSection(sec) {
+  return sec === 'overall' ? FIELDS_OVERALL : FIELDS_TITLE_LIKE;
+}
+
+/** Section keys from UI that actually define this field in the schema (e.g. skip overall for dominant_emotion). */
+function getApplicableSectionsForField(fieldKey) {
+  const fk = String(fieldKey || '');
+  return getSectionKeysFromInput().filter(sec =>
+    fieldsForSection(sec).some(f => f.key === fk));
+}
+
+function guessAgentColumnForField(fieldKey) {
+  const rules = [
+    [/dominant_emotion/i, /primary\s*emotion|dominant\s*emotion/i],
+    [/template_popularity|template.?type/i, /template/i],
+    [/readability/i, /readability/i],
+    [/intent_clarity/i, /intent/i],
+    [/emoji_count/i, /emoji/i],
+    [/subject_word_count/i, /subject/i],
+    [/message_word_count/i, /word.?count|message/i],
+    [/strong_call_to_action/i, /cta|call.?to.?action/i],
+    [/value_proposition/i, /value.?prop/i],
+    [/num_cards/i, /card/i],
+    [/num_images/i, /image/i],
+    [/num_buttons/i, /button/i],
+  ];
+  for (const [rePath, reHeader] of rules) {
+    if (rePath.test(fieldKey)) {
+      const h = parsedHeaders.find(x => reHeader.test(x));
+      if (h) return h;
+    }
+  }
+  return '';
+}
+
+function buildDbFieldMappingUI() {
+  const container = document.getElementById('dbFieldMapContainer');
+  if (!container) return;
+  const secKeys = getSectionKeysFromInput();
+  const rootsOn = getIncludedRoots();
+  let html = '';
+  for (const root of DB_ROOTS) {
+    if (!rootsOn.has(root)) continue;
+    html += `<details class="db-root-details"><summary class="db-root-summary">${escapeHtml(root)}</summary><div class="db-root-inner">`;
+    for (const sec of secKeys) {
+      const fields = fieldsForSection(sec);
+      html += `<div class="db-sec-title">${escapeHtml(root)} · ${escapeHtml(sec)}</div>`;
+      for (const f of fields) {
+        const fullPath = `${root}.${sec}.${f.key}`;
+        const safeId = `dbmap_${root}_${sec}_${f.key}`.replace(/[^a-zA-Z0-9_]/g, '_');
+        const guess = guessAgentColumnForField(f.key);
+        const opts = ['<option value="">— skip —</option>'].concat(
+          parsedHeaders.map(h => `<option value="${escapeHtml(h)}" ${h === guess ? 'selected' : ''}>${escapeHtml(h)}</option>`)
+        );
+        html += `<div class="custom-map-row">
+          <span class="db-path-label">${escapeHtml(fullPath)}</span>
+          <span class="map-badge">${escapeHtml(f.mode)}</span>
+          <select class="map-select dbmap-sel" style="min-width:160px;" id="${safeId}" data-path="${escapeHtml(fullPath)}" data-mode="${escapeHtml(f.mode)}">${opts.join('')}</select>
+        </div>`;
+      }
+    }
+    html += '</div></details>';
+  }
+  if (!html) {
+    html = '<p style="font-size:11px;color:var(--amber);font-family:var(--mono);">Check at least one root under “Include in validation” to map DB fields.</p>';
+  }
+  container.innerHTML = html;
+  updateDbSourceStatus();
+}
+
+function getDbFieldMappings() {
+  const rootsOn = getIncludedRoots();
+  const out = [];
+  document.querySelectorAll('select.dbmap-sel').forEach(sel => {
+    const col = sel.value?.trim();
+    const path = sel.dataset.path;
+    const mode = sel.dataset.mode || 'string';
+    if (!col || !path) return;
+    const root = path.split('.')[0];
+    if (!rootsOn.has(root)) return;
+    out.push({ col, path, mode });
+  });
+  return out;
+}
+
+function detectSep(text) {
+  const line = text.split('\n')[0];
+  const pipes = (line.match(/\|/g)||[]).length;
+  const tabs  = (line.match(/\t/g)||[]).length;
+  const commas= (line.match(/,/g)||[]).length;
+  if (tabs >= pipes && tabs >= commas) return '\t';
+  if (pipes >= commas) return '|';
+  return ',';
+}
+
+function cleanCell(v) {
+  return (v||'').trim().replace(/^["']|["']$/g,'');
+}
+
+function parseInput() {
+  const raw = document.getElementById('pasteInput').value.trim();
+  if (!raw) { alert('Please paste some data first.'); return; }
+
+  const sep = detectSep(raw);
+  const lines = raw.split('\n').filter(l => l.trim());
+  if (lines.length < 2) { alert('Need at least a header row + 1 data row.'); return; }
+
+  parsedHeaders = lines[0].split(sep).map(cleanCell);
+  parsedRows = lines.slice(1).map(line => {
+    const cells = line.split(sep).map(cleanCell);
+    const obj = {};
+    parsedHeaders.forEach((h, i) => obj[h] = cells[i] || '');
+    return obj;
+  }).filter(r => Object.values(r).some(v => v));
+
+  buildColumnPickers();
+  buildPreview();
+  buildMidOverrides();
+  buildDbFieldMappingUI();
+
+  document.getElementById('mapCard').classList.remove('hidden');
+  document.getElementById('midCard').classList.remove('hidden');
+  document.getElementById('mapCard').scrollIntoView({ behavior:'smooth' });
+}
+
+function guessRole(header) {
+  for (const [role, patterns] of Object.entries(GUESSES)) {
+    if (patterns.some(p => p.test(header))) return role;
+  }
+  return '__none__';
+}
+
+function buildColumnPickers() {
+  const midG = parsedHeaders.find(h => guessRole(h) === 'mid');
+  const campG = parsedHeaders.find(h => guessRole(h) === 'campaign_name');
+  const defaultRow = midG || campG || parsedHeaders[0] || '';
+  const cc = document.getElementById('colCampaign');
+  if (cc) {
+    cc.innerHTML = parsedHeaders.map(h =>
+      `<option value="${escapeHtml(h)}" ${h === defaultRow ? 'selected' : ''}>${escapeHtml(h)}</option>`
+    ).join('');
+  }
+  const wrap = document.getElementById('optionalScoreMaps');
+  if (wrap) {
+    wrap.innerHTML = OPTIONAL_SCORE_ROLES.map(role => {
+      const guessed = parsedHeaders.find(h => guessRole(h) === role.key) || '';
+      return `<div class="map-row">
+        <span class="map-label">${role.label}</span>
+        <select class="map-select" id="col_${role.key}" onchange="buildPreview()">
+          <option value="__none__">— not in this response —</option>
+          ${parsedHeaders.map(h => `<option value="${escapeHtml(h)}" ${h === guessed ? 'selected' : ''}>${escapeHtml(h)}</option>`).join('')}
+        </select>
+        <span class="map-badge">${role.hint}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+function previewBadgeKey(k) {
+  if (k === 'campaign_name') return 'row';
+  if (k === 'mid') return 'mid';
+  return k;
+}
+
+function getColumnBinding() {
+  const m = {};
+  const c = document.getElementById('colCampaign')?.value;
+  if (c) m.campaign_name = c;
+  OPTIONAL_SCORE_ROLES.forEach(r => {
+    const el = document.getElementById('col_' + r.key);
+    if (el && el.value && el.value !== '__none__') m[r.key] = el.value;
+  });
+  return m;
+}
+
+function buildPreview() {
+  const mapping = getColumnBinding();
+  const tbl = document.getElementById('previewTable');
+  const preview = parsedRows.slice(0, 3);
+  const thead = `<thead><tr>${parsedHeaders.map(h => {
+    const role = Object.entries(mapping).find(([, v]) => v === h);
+    const badge = role ? ` <span style="color:var(--cyan);font-size:8px;">[${previewBadgeKey(role[0])}]</span>` : '';
+    return `<th>${h}${badge}</th>`;
+  }).join('')}</tr></thead>`;
+  const tbody = `<tbody>${preview.map(row =>
+    `<tr>${parsedHeaders.map(h => `<td>${row[h]||''}</td>`).join('')}</tr>`
+  ).join('')}</tbody>`;
+  tbl.innerHTML = thead + tbody;
+}
+
+function buildMidOverrides() {
+  const mapping = getColumnBinding();
+  const container = document.getElementById('midOverrides');
+  const rowCol = document.getElementById('colCampaign')?.value;
+  const role = rowCol ? guessRole(rowCol) : '';
+  if (role === 'mid') {
+    container.innerHTML = `<p style="font-size:12px;color:var(--green);font-family:var(--mono);margin-bottom:12px;">✓ Row label column is <strong>MID</strong> — embedded benchmark scores use that value per row.</p>`;
+    return;
+  }
+  const rows = parsedRows.slice(0, 20);
+  const nameCol = mapping.campaign_name;
+  container.innerHTML = `
+    <p style="font-size:11px;color:var(--amber);font-family:var(--mono);margin-bottom:10px;">Optional: if the row label is a <strong>campaign name</strong> (not MID), enter the MID per row for benchmark score comparison:</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+      ${rows.map((r,i) => {
+        const name = nameCol ? r[nameCol] : `Row ${i+1}`;
+        return `<div style="display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--b1);border-radius:6px;padding:7px 10px;">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+          <input type="text" placeholder="MID" style="width:90px;background:var(--s3);border:1px solid var(--b2);border-radius:4px;color:var(--cyan);font-family:var(--mono);font-size:11px;padding:4px 7px;outline:none;" id="mmid_${i}">
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function pf(v) { return parseFloat((v||'').toString().replace(/[%,]/g,'')); }
+function classify(a,d) { const diff=Math.abs(a-d); return diff<=0.005?'pass':diff<=0.05?'near':'fail'; }
+function diffStr(a,d) { const x=a-d; return (x>=0?'+':'')+x.toFixed(4); }
+
+function detectBugs(row, mapping, dbRec) {
+  const bugs = [];
+  const a_os = pf(mapping.open_score ? row[mapping.open_score] : NaN);
+  const a_cs = pf(mapping.click_score ? row[mapping.click_score] : NaN);
+  const a_vs = pf(mapping.conv_score ? row[mapping.conv_score] : NaN);
+  const a_or = pf(mapping.open_rate ? row[mapping.open_rate] : NaN);
+  const a_ctr= pf(mapping.ctr ? row[mapping.ctr] : NaN);
+
+  if (!isNaN(a_cs) && (a_cs > 1.0 || a_cs < -1.0)) {
+    bugs.push(`Click Score "${a_cs}" is outside valid range [−1, 1].`);
+    if (dbRec) {
+      const sum = dbRec[2] + dbRec[3];
+      if (Math.abs(a_cs - sum) < 0.1) {
+        bugs.push(`Likely bug: open_mean (${dbRec[2]}) + click_mean (${dbRec[3]}) = ${sum.toFixed(4)} ≈ ${a_cs}. Agent is summing both scores instead of returning click score only.`);
+      }
+    }
+  }
+  if (!isNaN(a_os) && (a_os > 1.0 || a_os < -1.0)) {
+    if (!isNaN(a_or) && Math.abs(a_os - a_or) < 5) {
+      bugs.push(`Open Score "${a_os}" matches the Open Rate % value (${a_or}). Column swap: performance metric placed in score field.`);
+    } else {
+      bugs.push(`Open Score "${a_os}" is outside valid range [−1, 1].`);
+    }
+  }
+  if (!isNaN(a_vs) && (a_vs > 1.0 || a_vs < -1.0)) {
+    if (!isNaN(a_ctr) && Math.abs(a_vs - a_ctr/2) < 1) {
+      bugs.push(`Conv Score "${a_vs}" ≈ CTR% / 2 (${a_ctr}/2=${(a_ctr/2).toFixed(2)}). Performance metric bleeding into score field.`);
+    } else {
+      bugs.push(`Conv Score "${a_vs}" is outside valid range [−1, 1].`);
+    }
+  }
+  return bugs;
+}
+
+function midInContentDetailsCsv(mid) {
+  const s = String(mid || '').trim().replace(/,/g, '');
+  if (!s) return true;
+  const set = typeof window !== 'undefined' && window.CONTENT_DETAILS_MIDS instanceof Set
+    ? window.CONTENT_DETAILS_MIDS
+    : null;
+  if (!set) return true;
+  return set.has(s);
+}
+
+function runValidation() {
+  const mapping = getColumnBinding();
+  if (!mapping.campaign_name) { alert('Choose a row label column (step 2) so each row can be identified (e.g. MID).'); return; }
+
+  const anyScoreMappedPre = !!(mapping.open_score || mapping.click_score || mapping.conv_score);
+  const allScoresMapped = !!(mapping.open_score && mapping.click_score && mapping.conv_score);
+  if (anyScoreMappedPre && !allScoresMapped) {
+    if (!confirm('Some benchmark score columns are not mapped. Continue with partial score validation?')) return;
+  }
+
+  const dbRaw = document.getElementById('dbSourceJsonInput')?.value?.trim() || '';
+  const dbBlob = parseDbSourceJsonBlob(document.getElementById('dbSourceJsonInput')?.value || '');
+  const dbFieldMappings = getDbFieldMappings();
+
+  if (dbFieldMappings.length && dbRaw && !dbBlob.ok) {
+    alert('DB source JSON is invalid: ' + (dbBlob.error || 'parse error'));
+    return;
+  }
+  if (dbFieldMappings.length && !dbRaw) {
+    alert('DB field checks need JSON in “DB source JSON”. Paste a MID/campaign-keyed object or a single object with feature_values, …');
+    return;
+  }
+  if (dbFieldMappings.length && dbBlob.ok && dbBlob.mode === 'keyed' && Object.keys(dbBlob.data).length && !dbBlob.sharedPayload) {
+    const rowNames = parsedRows.map(r => (r[mapping.campaign_name] || '').trim()).filter(Boolean);
+    const keys = Object.keys(dbBlob.data);
+    const anyMatch = rowNames.some(n => keys.includes(n) || keys.includes(String(n).replace(/,/g, '')));
+    if (!anyMatch) {
+      if (!confirm('No row label matches a key in the JSON. Use keys that match your row label column (e.g. MID), or paste a single shared object with feature_values at the top. Continue? (Field checks may show NO DB PAYLOAD.)')) return;
+    }
+  }
+
+  const btn = document.getElementById('btnValidate');
+  const resultsEl = document.getElementById('results');
+  if (btn) btn.disabled = true;
+  resultsEl.innerHTML = '<div class="val-loading">Running validation…</div>';
+  setTimeout(() => {
+    try {
+      runValidationImpl();
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }, 35);
+}
+
+function runValidationImpl() {
+  const mapping = getColumnBinding();
+  const rowCol = document.getElementById('colCampaign')?.value;
+  const rowLabelIsMid = rowCol && guessRole(rowCol) === 'mid';
+  const anyScoreMapped = !!(mapping.open_score || mapping.click_score || mapping.conv_score);
+
+  const dbRaw = document.getElementById('dbSourceJsonInput')?.value?.trim() || '';
+  const dbBlob = parseDbSourceJsonBlob(document.getElementById('dbSourceJsonInput')?.value || '');
+  const dbFieldMappings = getDbFieldMappings();
+
+  const canUseDbFields = dbFieldMappings.length > 0 && dbBlob.ok && dbBlob.mode !== 'empty' && dbRaw;
+
+  if (!rowLabelIsMid) {
+    parsedRows.forEach((r, i) => {
+      const name = (r[mapping.campaign_name] || '').trim() || `Row ${i+1}`;
+      const el = document.getElementById(`mmid_${i}`);
+      if (el && el.value.trim()) manualMIDs[name] = el.value.trim();
+    });
+  }
+
+  let totalScore = 0, passScore = 0, failScore = 0, needManual = 0;
+  let customPass = 0, customFail = 0, customTotal = 0;
+  const cards = [];
+
+  parsedRows.forEach(row => {
+    const name = (row[mapping.campaign_name] || '').trim() || '(no name)';
+    let mid = rowLabelIsMid ? name : (manualMIDs[name] || '');
+    const dbRec = mid && DB[mid] ? DB[mid] : null;
+    if (mid && !dbRec) needManual++;
+
+    const a_os = pf(mapping.open_score ? row[mapping.open_score] : NaN);
+    const a_cs = pf(mapping.click_score ? row[mapping.click_score] : NaN);
+    const a_vs = pf(mapping.conv_score ? row[mapping.conv_score] : NaN);
+
+    const metrics = [
+      { label:'OPEN SCORE',  a:a_os, d:dbRec?dbRec[2]:null },
+      { label:'CLICK SCORE', a:a_cs, d:dbRec?dbRec[3]:null },
+      { label:'CONV SCORE',  a:a_vs, d:dbRec?dbRec[4]:null },
+    ];
+
+    let cardStatus = 'unk';
+    let scoreBlocksHTML = '';
+
+    if (anyScoreMapped) {
+      cardStatus = dbRec ? 'pass' : (mid ? 'warn' : 'unk');
+      metrics.forEach(m => {
+        if (isNaN(m.a)) {
+          scoreBlocksHTML += `<div class="sb"><div class="sb-lbl">${m.label}</div><span class="sb-status st-unk">— not mapped</span></div>`;
+          return;
+        }
+        if (m.d !== null) {
+          totalScore++;
+          const cls = classify(m.a, m.d);
+          if (cls === 'pass') passScore++; else failScore++;
+          if (cls !== 'pass' && cardStatus === 'pass') cardStatus = 'fail';
+          const diffClass = cls==='pass'?'diff-ok':cls==='near'?'diff-warn':'diff-bad';
+          const stClass = cls==='pass'?'st-pass':cls==='near'?'st-near':'st-fail';
+          const stLabel = cls==='pass'?'✓ PASS':cls==='near'?'~ NEAR':'✕ FAIL';
+          scoreBlocksHTML += `
+            <div class="sb">
+              <div class="sb-lbl">${m.label}</div>
+              <div class="sb-vals">
+                <span class="sv-agent" title="Agent value">${m.a.toFixed(4)}</span>
+                <span class="sv-arrow">→</span>
+                <span class="sv-db" title="DB value">${m.d.toFixed(4)}</span>
+                <span class="sv-diff ${diffClass}">${diffStr(m.a,m.d)}</span>
+              </div>
+              <span class="sb-status ${stClass}">${stLabel}</span>
+            </div>`;
+        } else {
+          const oob = m.a > 1.0 || m.a < -1.0;
+          if (oob) { cardStatus = 'fail'; failScore++; totalScore++; }
+          scoreBlocksHTML += `
+            <div class="sb">
+              <div class="sb-lbl">${m.label}</div>
+              <div class="sb-vals">
+                <span class="sv-agent">${m.a.toFixed(4)}</span>
+                <span class="sv-diff ${oob?'diff-bad':'diff-warn'}">${oob?'OUT OF RANGE':'NO DB'}</span>
+              </div>
+              <span class="sb-status ${oob?'st-fail':'st-unk'}">${oob?'✕ INVALID':'? UNVERIFIED'}</span>
+            </div>`;
+        }
+      });
+    } else if (canUseDbFields && dbFieldMappings.length) {
+      cardStatus = 'pass';
+    }
+
+    let customFieldsHTML = '';
+    if (canUseDbFields) {
+      const jsonRec = getJsonPayloadForRow(name, dbBlob);
+      if (!jsonRec && dbFieldMappings.length) cardStatus = 'fail';
+      const sub = [];
+      const seenFieldEval = new Set();
+      dbFieldMappings.forEach(cm => {
+        const parsed = parseMappingPath(cm.path);
+        const dedupeKey = parsed ? `${cm.col}|${parsed.root}|${parsed.fieldKey}` : `${cm.col}|${cm.path}`;
+        if (seenFieldEval.has(dedupeKey)) return;
+        seenFieldEval.add(dedupeKey);
+        customTotal++;
+        const agentVal = row[cm.col];
+        const ev = evaluateMappingAcrossSections(agentVal, jsonRec, cm);
+        if (!jsonRec) customFail++;
+        else if (ev.ok) customPass++;
+        else customFail++;
+        if (jsonRec && !ev.ok) cardStatus = 'fail';
+        sub.push(renderFieldComparisonBlock(cm, agentVal, jsonRec, ev));
+      });
+      customFieldsHTML = `
+        <div style="font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:14px 0 10px;">Field validation · agent vs DB (per-field schema sections)</div>
+        <div class="cmp-field-wrap">${sub.join('')}</div>`;
+    }
+
+    const skipKeys = new Set(Object.values(mapping));
+    dbFieldMappings.forEach(cm => skipKeys.add(cm.col));
+    const otherCols = parsedHeaders.filter(h => !skipKeys.has(h));
+    const otherHTML = otherCols.length ? `
+      <div class="other-cols">
+        ${otherCols.map(h => `<div class="col-chip"><div class="cl">${escapeHtml(h)}</div><div class="cv">${escapeHtml(row[h] ?? '—')}</div></div>`).join('')}
+      </div>` : '';
+
+    const bugs = anyScoreMapped ? detectBugs(row, mapping, dbRec) : [];
+    const bugsHTML = bugs.length ? `
+      <div class="bugs">
+        <div class="bug-hdr">Root Cause Analysis (${bugs.length} issue${bugs.length>1?'s':''})</div>
+        ${bugs.map(b => `<div class="bug-item">${b}</div>`).join('')}
+      </div>` : (anyScoreMapped && dbRec ? `<div class="bugs"><span class="no-bugs">✓ No structural bugs detected</span></div>` : '');
+
+    const missingHTML = (anyScoreMapped && mid && !dbRec) ? `
+      <div class="missing-box">⚠ MID <strong>${escapeHtml(mid)}</strong> not in embedded benchmark table.<br>
+      For scores: use a known MID or rely on range checks. For content fields: paste DB JSON keyed by row label or a shared object with <code>feature_values</code>, …
+      </div>` : (anyScoreMapped && !mid ? `<div class="missing-box" style="border-color:#1a2a3a;color:#5a7a9a;background:#0a1018;">ℹ No MID for benchmarks — map score columns or set row label to MID.</div>` : '');
+
+    const csvMidMissingHTML = (mid && !midInContentDetailsCsv(mid)) ? `
+      <div class="csv-mid-missing">this mid is not present in the content details file (CSV)@<code>content_feature_validator/ui/vertical cid mid channel aid content_typ.csv</code>
+      </div>` : '';
+
+    const dotColor = cardStatus==='pass'?'var(--green)':cardStatus==='fail'?'var(--red)':cardStatus==='warn'?'var(--amber)':'var(--muted)';
+    const vBg = cardStatus==='pass'?'#001a0d':cardStatus==='fail'?'#1a0007':cardStatus==='warn'?'#1a0e00':'var(--s3)';
+    const vColor = cardStatus==='pass'?'var(--green)':cardStatus==='fail'?'var(--red)':cardStatus==='warn'?'var(--amber)':'var(--muted)';
+    const vText = cardStatus==='pass'?'✓ ALL PASS':cardStatus==='fail'?'✕ ISSUES':cardStatus==='warn'?'? UNVERIFIED':'? NO DB';
+
+    const dbInfo = dbRec ? `${dbRec[0]} · ${dbRec[1]}` : '';
+
+    cards.push(`
+      <div class="rc">
+        <div class="rc-hdr">
+          <div class="rc-dot" style="background:${dotColor};box-shadow:0 0 5px ${dotColor}55;"></div>
+          <div>
+            <div class="rc-name">${escapeHtml(name)}</div>
+            ${dbInfo ? `<div class="rc-meta">${dbInfo}</div>` : ''}
+          </div>
+          <span class="mid-tag ${mid&&!dbRec?'warn':''}">${mid?'MID: '+escapeHtml(mid):'no MID'}</span>
+          <span class="verdict" style="background:${vBg};color:${vColor};border:1px solid ${vColor}33;">${vText}</span>
+        </div>
+        <div class="rc-body">
+          ${missingHTML}
+          ${csvMidMissingHTML}
+          ${anyScoreMapped ? `<div class="score-row">${scoreBlocksHTML}</div>` : ''}
+          ${customFieldsHTML}
+          ${otherHTML}
+          ${bugsHTML}
+        </div>
+      </div>`);
+  });
+
+  const summaryHTML = `
+    <div class="r-hdr">
+      <div class="r-title">Validation Report</div>
+      <div class="r-meta">${parsedRows.length} rows · ${new Date().toLocaleTimeString()}</div>
+    </div>
+    <div class="summary-grid">
+      <div class="s-stat"><div class="s-val" style="color:var(--text)">${parsedRows.length}</div><div class="s-lbl">Rows</div></div>
+      <div class="s-stat"><div class="s-val" style="color:var(--green)">${anyScoreMapped ? passScore : '—'}</div><div class="s-lbl">Score Fields Pass</div></div>
+      <div class="s-stat"><div class="s-val" style="color:var(--red)">${anyScoreMapped ? failScore : '—'}</div><div class="s-lbl">Score Fields Fail</div></div>
+      <div class="s-stat"><div class="s-val" style="color:var(--amber)">${anyScoreMapped ? needManual : '—'}</div><div class="s-lbl">Unknown MID</div></div>
+    </div>
+    ${customTotal ? `<div class="r-meta" style="margin-top:10px;">DB field checks: <span style="color:var(--green);">${customPass}</span> pass · <span style="color:var(--red);">${customFail}</span> fail · ${customTotal} total</div>` : ''}`;
+
+  document.getElementById('results').innerHTML = summaryHTML + cards.join('');
+  document.getElementById('results').scrollIntoView({ behavior:'smooth' });
+}
+
+updateDbSourceStatus();
+</script>
+</body>
+</html>
